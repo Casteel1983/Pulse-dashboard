@@ -402,34 +402,34 @@ function LoginScreen({ onLogin }) {
                   <div style={{ fontSize:"0.7rem", color:"#6B7A99" }}>Enter your password</div>
                 </div>
               </div>
-              {/* Hidden username field so browsers know which account this password belongs to */}
-              <input
-                type="text"
-                name="username"
-                autoComplete="username"
-                value={selectedUser?.id || ""}
-                readOnly
-                style={{ display:"none" }}
-              />
-              <input
-                ref={inputRef}
-                type="password"
-                name="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={e => { setPassword(e.target.value); setError(""); }}
-                onKeyDown={e => e.key === "Enter" && handleLogin()}
-                placeholder="Password"
-                style={{ width:"100%", padding:"0.75rem 1rem", border:`2px solid ${error?"#DC2626":"#D0DCF0"}`, borderRadius:8, fontSize:"0.85rem", outline:"none", boxSizing:"border-box", marginBottom:"0.75rem", transition:"border 0.2s" }}
-                onFocus={e => e.target.style.borderColor=selectedUser.color}
-                onBlur={e => e.target.style.borderColor=error?"#DC2626":"#D0DCF0"}
-              />
-              {error && <div style={{ fontSize:"0.72rem", color:"#DC2626", marginBottom:"0.75rem" }}>⚠ {error}</div>}
-              <button onClick={handleLogin} disabled={loading || !password}
-                style={{ width:"100%", padding:"0.8rem", background:selectedUser.color, color:"#fff", border:"none", borderRadius:8,
-                  fontSize:"0.85rem", fontWeight:700, cursor: loading||!password ? "not-allowed" : "pointer", opacity: loading||!password ? 0.7 : 1 }}>
-                {loading ? "Signing in…" : "Sign In"}
-              </button>
+              <form onSubmit={e => { e.preventDefault(); handleLogin(); }} method="post" action="#">
+                <input
+                  type="text"
+                  name="username"
+                  autoComplete="username"
+                  value={selectedUser?.id || ""}
+                  readOnly
+                  style={{ position:"absolute", opacity:0, pointerEvents:"none", width:1, height:1 }}
+                />
+                <input
+                  ref={inputRef}
+                  type="password"
+                  name="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setError(""); }}
+                  placeholder="Password"
+                  style={{ width:"100%", padding:"0.75rem 1rem", border:`2px solid ${error?"#DC2626":"#D0DCF0"}`, borderRadius:8, fontSize:"0.85rem", outline:"none", boxSizing:"border-box", marginBottom:"0.75rem", transition:"border 0.2s" }}
+                  onFocus={e => e.target.style.borderColor=selectedUser.color}
+                  onBlur={e => e.target.style.borderColor=error?"#DC2626":"#D0DCF0"}
+                />
+                {error && <div style={{ fontSize:"0.72rem", color:"#DC2626", marginBottom:"0.75rem" }}>⚠ {error}</div>}
+                <button type="submit" disabled={loading || !password}
+                  style={{ width:"100%", padding:"0.8rem", background:selectedUser.color, color:"#fff", border:"none", borderRadius:8,
+                    fontSize:"0.85rem", fontWeight:700, cursor: loading||!password ? "not-allowed" : "pointer", opacity: loading||!password ? 0.7 : 1 }}>
+                  {loading ? "Signing in…" : "Sign In"}
+                </button>
+              </form>
             </>
           )}
         </div>
