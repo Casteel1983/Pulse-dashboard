@@ -402,9 +402,20 @@ function LoginScreen({ onLogin }) {
                   <div style={{ fontSize:"0.7rem", color:"#6B7A99" }}>Enter your password</div>
                 </div>
               </div>
+              {/* Hidden username field so browsers know which account this password belongs to */}
+              <input
+                type="text"
+                name="username"
+                autoComplete="username"
+                value={selectedUser?.id || ""}
+                readOnly
+                style={{ display:"none" }}
+              />
               <input
                 ref={inputRef}
                 type="password"
+                name="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={e => { setPassword(e.target.value); setError(""); }}
                 onKeyDown={e => e.key === "Enter" && handleLogin()}
