@@ -476,7 +476,7 @@ function AdminTab({ currentUser }) {
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model:"claude-sonnet-4-20250514", max_tokens:1000,
+          model:"claude-sonnet-4-5", max_tokens:1000,
           messages:[{ role:"user", content:`You are a sales manager analyzing rep activity in a tire & ag distribution company dashboard.
 
 Activity log (most recent first):
@@ -491,9 +491,10 @@ Based on this activity data:
 Keep it concise and actionable, written for a sales manager.` }]
         })
       });
+      if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
       const data = await res.json();
       setAiSuggestions(data.content?.[0]?.text || "No suggestions generated.");
-    } catch { setAiSuggestions("Could not generate suggestions."); }
+    } catch(e) { setAiSuggestions(`Error: ${e.message || 'Could not connect. Check API key.'}`); }
     setAiLoading(false);
   }
 
@@ -1640,7 +1641,7 @@ function AITab({ weekComp, initialPrompt, onClearPrompt }) {
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5",
           max_tokens: 1000,
           system: systemCtx,
           messages: apiMessages,
@@ -3801,17 +3802,18 @@ ${hasRealCalls
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5",
           max_tokens: 1000,
           messages: [{ role: "user", content: prompt }],
         }),
       });
+      if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
       const data = await res.json();
       const raw = data.content?.[0]?.text || "{}";
       const clean = raw.replace(/```json|```/g, "").trim();
       setCallSummary(JSON.parse(clean));
-    } catch {
-      setCallSummary({ error: "Could not generate call summary." });
+    } catch(e) {
+      setCallSummary({ error: `Error: ${e.message || 'Could not connect to AI. Check API key.'}` });
     }
     setAiLoading(false);
   }
