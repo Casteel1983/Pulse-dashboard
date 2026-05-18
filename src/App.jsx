@@ -330,10 +330,31 @@ function LoginScreen({ onLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const inputRef = useRef(null);
+
+  // Auto-login if remembered
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("pulse_remembered_user");
+      if (saved) {
+        const { userId } = JSON.parse(saved);
+        const user = USERS.find(u => u.id === userId);
+        if (user) onLogin(user);
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (selectedUser && inputRef.current) inputRef.current.focus();
+    // Pre-check remember me if this user was previously remembered
+    try {
+      const saved = localStorage.getItem("pulse_remembered_user");
+      if (saved) {
+        const { userId } = JSON.parse(saved);
+        if (selectedUser?.id === userId) setRememberMe(true);
+      }
+    } catch {}
   }, [selectedUser]);
 
   async function handleLogin() {
@@ -344,6 +365,11 @@ function LoginScreen({ onLogin }) {
       const hashed = await hashPw(password);
       const user = USERS.find(u => u.id === selectedUser.id);
       if (hashed === user.hash) {
+        if (rememberMe) {
+          localStorage.setItem("pulse_remembered_user", JSON.stringify({ userId: user.id }));
+        } else {
+          localStorage.removeItem("pulse_remembered_user");
+        }
         onLogin(user);
       } else {
         setError("Incorrect password. Please try again.");
@@ -424,6 +450,18 @@ function LoginScreen({ onLogin }) {
                   onBlur={e => e.target.style.borderColor=error?"#DC2626":"#D0DCF0"}
                 />
                 {error && <div style={{ fontSize:"0.72rem", color:"#DC2626", marginBottom:"0.75rem" }}>⚠ {error}</div>}
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:"0.75rem" }}>
+                  <input
+                    type="checkbox"
+                    id="rememberMe"
+                    checked={rememberMe}
+                    onChange={e => setRememberMe(e.target.checked)}
+                    style={{ width:16, height:16, cursor:"pointer", accentColor:selectedUser.color }}
+                  />
+                  <label htmlFor="rememberMe" style={{ fontSize:"0.75rem", color:"#6B7A99", cursor:"pointer", userSelect:"none" }}>
+                    Keep me signed in on this device
+                  </label>
+                </div>
                 <button type="submit" disabled={loading || !password}
                   style={{ width:"100%", padding:"0.8rem", background:selectedUser.color, color:"#fff", border:"none", borderRadius:8,
                     fontSize:"0.85rem", fontWeight:700, cursor: loading||!password ? "not-allowed" : "pointer", opacity: loading||!password ? 0.7 : 1 }}>
@@ -778,7 +816,7 @@ export default function App() {
               <span style={{ opacity:0.7, fontWeight:400 }}>Logged in: </span>{currentUser.name}
             </span>
             <button
-              onClick={() => { logActivity("logout","Logged out"); setCurrentUser(null); }}
+              onClick={() => { logActivity("logout","Logged out"); localStorage.removeItem("pulse_remembered_user"); setCurrentUser(null); }}
               style={{ fontSize:"0.65rem", color:"rgba(255,255,255,0.8)", background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:4, padding:"2px 8px", cursor:"pointer" }}>
               Sign Out
             </button>
