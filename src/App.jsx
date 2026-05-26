@@ -332,19 +332,26 @@ function parseWeekCompWorkbook(wb) {
   let actionPlan = [];
   if (apWs) {
     const rows = XLSX.utils.sheet_to_json(apWs, { defval: null, range: 2 });
-    actionPlan = rows.filter(r => r["Cust #"]).map(r => ({
-      salesman: String(r["Salesman"] || ""),
-      custNum: r["Cust #"],
-      customer: String(r["Customer Name"] || ""),
-      sales2025: Number(r["2025 Sales"] || 0),
-      sales2026: Number(r["2026 Sales"] || 0),
-      change: Number(r["$ Change"] || 0),
-      gpPct: Number(r["GP %"] || 0),
-      action: String(r["Action Plan"] || ""),
-      topDept: String(r["Top Dept (2026)"] || ""),
-      declinedDept: String(r["Most Declined Dept"] || ""),
-      focus: String(r["Dept Focus Areas"] || ""),
-    }));
+    actionPlan = rows.filter(r => r["Cust #"] || r["Cust#"] || r["Customer #"]).map(r => {
+      const custNum   = r["Cust #"] || r["Cust#"] || r["Customer #"];
+      const topRaw    = String(r["Top Dept (2026)"] || r["Top Dept"] || "");
+      const decRaw    = String(r["Most Declined Dept"] || r["Most Declined"] || "");
+      const city      = String(r["City"] || "");
+      return {
+        salesman:     String(r["Salesman"] || ""),
+        city,
+        custNum,
+        customer:     String(r["Customer Name"] || r["Customer"] || ""),
+        sales2025:    Number(r["2025 Sales"] || 0),
+        sales2026:    Number(r["2026 Sales"] || 0),
+        change:       Number(r["$ Change"] || 0),
+        gpPct:        Number(r["GP %"] || 0),
+        action:       String(r["Action Plan"] || ""),
+        topDept:      topRaw.split("(")[0].trim(),
+        declinedDept: decRaw.toLowerCase() === "none" ? "" : decRaw.split("(")[0].trim(),
+        focus:        String(r["Dept Focus Areas"] || ""),
+      };
+    });
   }
 
   // Customers
@@ -581,7 +588,7 @@ function AdminTab({ currentUser }) {
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model:"claude-sonnet-4-5", max_tokens:1000,
+          model:"claude-sonnet-4-6", max_tokens:1000,
           messages:[{ role:"user", content:`You are a sales manager analyzing rep activity in a tire & ag distribution company dashboard.
 
 Activity log (most recent first):
@@ -795,7 +802,17 @@ export default function App() {
     let parsed;
     if (slotId === "weekComp") {
       parsed = parseWeekCompWorkbook(wb);
-      setFileData(prev => ({ ...prev, weekComp: parsed }));
+      // Merge with seed data — keep seed action plan if upload has none, keep seed weeks if upload has none
+      setFileData(prev => {
+        const existing = prev.weekComp || SEED_WEEK_COMP;
+        const merged = {
+          weeks:      (parsed.weeks      && parsed.weeks.length > 0)      ? parsed.weeks      : existing.weeks,
+          depts:      (parsed.depts      && parsed.depts.length > 0)      ? parsed.depts      : existing.depts,
+          actionPlan: (parsed.actionPlan && parsed.actionPlan.length > 0) ? parsed.actionPlan : existing.actionPlan,
+          customers:  (parsed.customers  && parsed.customers.length > 0)  ? parsed.customers  : existing.customers,
+        };
+        return { ...prev, weekComp: merged };
+      });
     } else if (slotId === "sales") {
       // Auto-detect year columns (e.g. "2025 Sales", "2026 Sales", "2027 Sales")
       const sheetName = wb.SheetNames[0];
@@ -818,6 +835,42 @@ export default function App() {
       const yearList = yearCols.map(c => c.match(/20\d{2}/)[0]).join(", ");
       setFileData(prev => ({ ...prev, ...updates }));
       setNotice(`✓ Sales data loaded — years detected: ${yearList || "none"}`);
+    } else if (slotId === "ar") {
+      // AR has a specific format — parse it like the seed data
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null });
+      const arParsed = [];
+      rows.slice(1).forEach(row => {
+        if (!row[1] || typeof row[1] !== "number") return;
+        let lastPaid = "";
+        if (row[12]) {
+          try {
+            const d = row[12] instanceof Date ? row[12] : new Date(row[12]);
+            if (!isNaN(d)) lastPaid = d.toISOString().slice(0,10);
+          } catch {}
+        }
+        arParsed.push({
+          salesman:  String(row[0]||"").trim(),
+          custNum:   row[1],
+          shortName: String(row[2]||"").trim(),
+          name:      String(row[3]||"").trim(),
+          phone:     String(row[4]||"").trim(),
+          balance:   Number(row[5]||0),
+          futDue:    Number(row[6]||0),
+          curDue:    Number(row[7]||0),
+          due1_30:   Number(row[8]||0),
+          due31_60:  Number(row[9]||0),
+          due61_90:  Number(row[10]||0),
+          dueOver90: Number(row[11]||0),
+          lastPaid,
+        });
+      });
+      if (arParsed.length > 0) {
+        setFileData(prev => ({ ...prev, ar: arParsed }));
+        setNotice(`✓ AR loaded — ${arParsed.length} accounts, $${arParsed.reduce((s,a)=>s+a.balance,0).toLocaleString("en-US",{maximumFractionDigits:0})} total`);
+      } else {
+        setNotice("⚠ AR file could not be parsed — check format");
+      }
     } else {
       const sheetName = wb.SheetNames[0];
       parsed = readSheet(wb, sheetName);
@@ -1757,7 +1810,7 @@ function AITab({ weekComp, initialPrompt, onClearPrompt }) {
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "claude-sonnet-4-6",
           max_tokens: 1000,
           system: systemCtx,
           messages: apiMessages,
@@ -4059,7 +4112,7 @@ ${hasRealCalls
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "claude-sonnet-4-6",
           max_tokens: 1000,
           messages: [{ role: "user", content: prompt }],
         }),
