@@ -1797,7 +1797,7 @@ function AITab({ weekComp, initialPrompt, onClearPrompt }) {
     const systemCtx = weekComp ? `You have access to week-by-week sales comparison data (2025 vs 2026) for a multi-line tire and ag distributor. ${weekComp.weeks?.length || 0} weeks on file. YTD 2026: $${(weekComp.weeks||[]).reduce((s,w)=>s+w.sales2026,0).toFixed(0)}. Be concise and actionable.` : "You are a sales analytics assistant.";
 
     const apiMessages = [
-      ...(isAuto ? [] : messages),
+      ...(isAuto ? [] : messages).map(m => ({ role: m.role, content: m.content })),
       { role: "user", content: text }
     ];
 
