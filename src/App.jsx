@@ -6,10 +6,11 @@ import {
 } from "recharts";
 import * as Recharts from "recharts";
 
-// Safe API key — works in Vite build (import.meta.env) and plain browser (window.__ANTHROPIC_KEY__)
-const ANTHROPIC_KEY = (() => {
-  try { return ANTHROPIC_KEY; } catch { return ""; }
-})();
+// API key — injected at build time by Vite from VITE_ANTHROPIC_KEY secret
+// Falls back to empty string if not set (AI features will show error)
+const ANTHROPIC_KEY = (typeof __VITE_ANTHROPIC_KEY__ !== "undefined" && __VITE_ANTHROPIC_KEY__)
+  ? __VITE_ANTHROPIC_KEY__
+  : "";
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const AMBER  = "#1E5FCC";   // primary blue
@@ -1816,13 +1817,17 @@ function AITab({ weekComp, initialPrompt, onClearPrompt }) {
           messages: apiMessages,
         }),
       });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`API ${res.status}: ${errText}`);
+      }
       const data = await res.json();
       const reply = data.content?.[0]?.text || "No response.";
       setMessages(prev => [
         ...(isAuto ? [{ role: "assistant", content: reply, auto: true }] : [...prev, { role: "assistant", content: reply }])
       ]);
-    } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: "Error connecting to AI." }]);
+    } catch(e) {
+      setMessages(prev => [...prev, { role: "assistant", content: `Error: ${e.message || "Could not connect to AI."}` }]);
     }
     setLoading(false);
   }
