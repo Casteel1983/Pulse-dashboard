@@ -622,8 +622,8 @@ Keep it concise and actionable, written for a sales manager.` }]
     return d.toLocaleDateString("en-US",{month:"short",day:"numeric"}) + " " + d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
   }
 
-  const actionIcon = a => a==="login"?"🔑":a==="logout"?"🚪":a==="view_customer"?"👤":"📋";
-  const actionColor = a => a==="login"?GREEN:a==="logout"?MUTED:a==="view_customer"?AMBER:TEAL;
+  const actionIcon = a => a==="login"?"🔑":a==="logout"?"🚪":a==="view_customer"?"👤":a==="mark_inactive"?"⊘":a==="mark_active"?"✓":"📋";
+  const actionColor = a => a==="login"?GREEN:a==="logout"?MUTED:a==="view_customer"?AMBER:a==="mark_inactive"?RED:a==="mark_active"?GREEN:TEAL;
 
   return (
     <div>
@@ -660,6 +660,26 @@ Keep it concise and actionable, written for a sales manager.` }]
           <div style={{ fontSize:"0.72rem", color:MUTED, marginTop:8 }}>No activity logged yet — suggestions will appear once reps start using the dashboard.</div>
         )}
       </div>
+
+      {/* Inactive Accounts summary */}
+      {Object.keys(inactiveList||{}).length > 0 && (
+        <div style={{ ...S.card, marginBottom:"1rem" }}>
+          <div style={{ fontSize:"0.72rem", fontWeight:700, color:RED, textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:"0.75rem" }}>
+            ⊘ Inactive Accounts <span style={{ color:MUTED, fontWeight:400 }}>({Object.keys(inactiveList).length})</span>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {Object.entries(inactiveList).map(([custNum, info]) => (
+              <div key={custNum} style={{ display:"flex", gap:12, padding:"0.45rem 0.6rem", background:"#FEF2F2", borderRadius:6, alignItems:"flex-start" }}>
+                <span style={{ fontSize:"0.9rem" }}>⊘</span>
+                <span style={{ fontSize:"0.7rem", fontWeight:700, color:RED, minWidth:60 }}>#{custNum}</span>
+                <span style={{ fontSize:"0.72rem", color:TEXT, flex:1 }}>{info.name}</span>
+                <span style={{ fontSize:"0.68rem", color:MUTED, whiteSpace:"nowrap" }}>by {info.by} on {info.date}</span>
+                <span style={{ fontSize:"0.68rem", color:"#991B1B", maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{info.reason}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Activity log */}
       <div style={S.card}>
@@ -708,6 +728,34 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [custTabs, setCustTabs] = useState([]); // open customer detail tabs, max 10
+  const [inactiveCustomers, setInactiveCustomers] = useState({}); // custNum → {reason, date, by}
+
+  // Load inactive customers from storage on mount
+  useEffect(() => {
+    async function loadInactive() {
+      try {
+        const res = localStorage.getItem("inactive_customers");
+        if (res) setInactiveCustomers(JSON.parse(res));
+      } catch {}
+    }
+    loadInactive();
+  }, []);
+
+  async function markInactive(custNum, custName, reason, markedBy) {
+    const entry = { reason, date: new Date().toISOString().slice(0,10), by: markedBy, name: custName };
+    const updated = { ...inactiveCustomers, [String(custNum)]: entry };
+    setInactiveCustomers(updated);
+    localStorage.setItem("inactive_customers", JSON.stringify(updated));
+    logActivity("mark_inactive", `${custName} — ${reason}`);
+  }
+
+  async function markActive(custNum, custName) {
+    const updated = { ...inactiveCustomers };
+    delete updated[String(custNum)];
+    setInactiveCustomers(updated);
+    localStorage.setItem("inactive_customers", JSON.stringify(updated));
+    logActivity("mark_active", `${custName} reactivated`);
+  }
   const [uploadDates, setUploadDates] = useState({}); // {slotId: ISO timestamp}
   const [dismissedWarning, setDismissedWarning] = useState(false);
 
@@ -1007,7 +1055,7 @@ export default function App() {
         {tab === "setup"    && <FileSetup fileData={fileData} onUpload={handleUpload} onClear={clearAll} />}
         {tab === "overview" && <OverviewTab weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} />}
         {["tiffany","larry","austin","house"].includes(tab) && (
-          <RepTab repName={tab.charAt(0).toUpperCase()+tab.slice(1)} weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} />
+          <RepTab repName={tab.charAt(0).toUpperCase()+tab.slice(1)} weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} inactiveCustomers={inactiveCustomers} />
         )}
         {tab === "ai" && <AITab weekComp={weekComp} initialPrompt={aiPrompt} onClearPrompt={() => setAiPrompt("")} />}
         {tab === "map" && <MapTab customers={fileData.customers || SEED_CUSTOMERS} weekComp={weekComp} />}
@@ -1021,6 +1069,10 @@ export default function App() {
             ar={fileData.ar || SEED_AR}
             weekComp={fileData.weekComp || SEED_WEEK_COMP}
             onClose={() => closeCustomer(ct.custNum)}
+            inactiveRecord={inactiveCustomers[String(ct.custNum)] || null}
+            onMarkInactive={(reason) => markInactive(ct.custNum, ct.customer, reason, currentUser?.name || "Admin")}
+            onMarkActive={() => markActive(ct.custNum, ct.customer)}
+            currentUser={currentUser}
           />
         ))}
       </div>
@@ -1235,7 +1287,7 @@ function DeptView({ depts }) {
 }
 
 // ── Action Plan View ──────────────────────────────────────────────────────────
-function ActionPlanView({ actionPlan, onCustomerClick, customers }) {
+function ActionPlanView({ actionPlan, onCustomerClick, customers, inactiveCustomers }) {
   const [repFilter, setRepFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("change");
@@ -1349,7 +1401,8 @@ function ActionPlanView({ actionPlan, onCustomerClick, customers }) {
             </thead>
             <tbody>
               {filtered.slice(0, 150).map((a, i) => (
-                <tr key={i} onClick={() => onCustomerClick && onCustomerClick(a)} style={{ cursor: onCustomerClick ? "pointer" : "default" }}
+                <tr key={i} onClick={() => onCustomerClick && onCustomerClick(a)}
+                  style={{ cursor: onCustomerClick ? "pointer" : "default", opacity: (inactiveCustomers||{})[String(a.custNum)] ? 0.45 : 1 }}
                   onMouseEnter={e => { if(onCustomerClick) e.currentTarget.style.background="#EEF4FF"; }}
                   onMouseLeave={e => { e.currentTarget.style.background="transparent"; }}>
                   <td style={{ ...S.td, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: onCustomerClick ? AMBER : TEXT, fontWeight: onCustomerClick ? 600 : 400 }} title={a.customer}>
@@ -1416,7 +1469,7 @@ function TrendView({ weeks }) {
 }
 
 // ── Rep Tab ───────────────────────────────────────────────────────────────────
-function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers }) {
+function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inactiveCustomers }) {
   const color = REP_COLORS[repName] || AMBER;
   const [cityFilter, setCityFilter] = useState("All");
   const [showShared, setShowShared] = useState(true);
@@ -1545,7 +1598,7 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers }) {
       </div>
 
       {repSubTab === "accounts" && (
-        <ActionPlanView actionPlan={filtered} onCustomerClick={onCustomerClick} customers={customers} />
+        <ActionPlanView actionPlan={filtered} onCustomerClick={onCustomerClick} customers={customers} inactiveCustomers={inactiveCustomers} />
       )}
       {repSubTab === "ad" && (
         <RepADTab actionPlan={actionPlan} repName={repName} color={color} onCustomerClick={onCustomerClick} />
@@ -1796,8 +1849,12 @@ function AITab({ weekComp, initialPrompt, onClearPrompt }) {
 
     const systemCtx = weekComp ? `You have access to week-by-week sales comparison data (2025 vs 2026) for a multi-line tire and ag distributor. ${weekComp.weeks?.length || 0} weeks on file. YTD 2026: $${(weekComp.weeks||[]).reduce((s,w)=>s+w.sales2026,0).toFixed(0)}. Be concise and actionable.` : "You are a sales analytics assistant.";
 
+    // Strip ALL extra fields — only role and content are allowed by the API
+    const cleanMessages = messages
+      .filter(m => m.role && m.content)
+      .map(m => ({ role: m.role, content: String(m.content) }));
     const apiMessages = [
-      ...(isAuto ? [] : messages).map(m => ({ role: m.role, content: m.content })),
+      ...(isAuto ? [] : cleanMessages),
       { role: "user", content: text }
     ];
 
@@ -2455,6 +2512,45 @@ function ARTab({ ar }) {
           <div style={S.kpiLbl}>Over 90 Days ({riskAccounts.length} accts)</div>
         </div>
       </div>
+
+      {/* Inactive banner */}
+      {isInactive && (
+        <div style={{ padding:"0.6rem 1rem", background:"#FEF2F2", border:"2px solid #FECACA", borderRadius:8, marginBottom:"0.75rem", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+          <span style={{ fontSize:"0.85rem" }}>⊘</span>
+          <div style={{ flex:1 }}>
+            <span style={{ fontSize:"0.75rem", fontWeight:700, color:RED }}>INACTIVE</span>
+            <span style={{ fontSize:"0.72rem", color:"#991B1B", marginLeft:8 }}>Marked by {inactiveRecord.by} on {inactiveRecord.date}</span>
+            {inactiveRecord.reason && <div style={{ fontSize:"0.72rem", color:"#991B1B", marginTop:2 }}>Reason: {inactiveRecord.reason}</div>}
+          </div>
+          <button onClick={() => { if(window.confirm(`Reactivate ${ap.customer}?`)) onMarkActive(); }}
+            style={{ background:"#F0FDF4", border:"1px solid #BBF7D0", color:GREEN, borderRadius:4, padding:"0.3rem 0.75rem", cursor:"pointer", fontSize:"0.72rem", fontWeight:700 }}>
+            ✓ Reactivate
+          </button>
+        </div>
+      )}
+
+      {/* Mark inactive form */}
+      {showInactiveForm && (
+        <div style={{ ...S.card, border:`2px solid ${RED}`, marginBottom:"0.75rem" }}>
+          <div style={{ fontSize:"0.75rem", fontWeight:700, color:RED, marginBottom:"0.75rem" }}>⊘ Mark {ap.customer} as Inactive</div>
+          <textarea
+            value={inactiveReason}
+            onChange={e => setInactiveReason(e.target.value)}
+            placeholder="Reason for marking inactive (e.g. closed, no longer buying, moved to competitor)..."
+            rows={3}
+            style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT, padding:"0.5rem 0.75rem", borderRadius:6, fontSize:"0.78rem", resize:"vertical", boxSizing:"border-box", marginBottom:"0.75rem" }}
+          />
+          <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+            <button onClick={() => { setShowInactiveForm(false); setInactiveReason(""); }} style={{ ...S.btn(MUTED) }}>Cancel</button>
+            <button onClick={() => {
+              if (!inactiveReason.trim()) { alert("Please enter a reason."); return; }
+              onMarkInactive(inactiveReason.trim());
+              setShowInactiveForm(false);
+              setInactiveReason("");
+            }} style={{ ...S.btn(RED), background:RED, color:"#fff" }}>Confirm Inactive</button>
+          </div>
+        </div>
+      )}
 
       {/* Sub tabs */}
       <div style={S.subNav}>
@@ -4043,10 +4139,13 @@ function ADProgramTab({ adProgram, custName }) {
 }
 
 // ── Customer Detail Tab ───────────────────────────────────────────────────────
-function CustomerDetailTab({ ap, customers, ar, weekComp, onClose }) {
+function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecord, onMarkInactive, onMarkActive, currentUser }) {
   const [subTab, setSubTab] = useState("overview");
   const [aiLoading, setAiLoading] = useState(false);
   const [callSummary, setCallSummary] = useState(null);
+  const [showInactiveForm, setShowInactiveForm] = useState(false);
+  const [inactiveReason, setInactiveReason] = useState("");
+  const isInactive = !!inactiveRecord;
 
   // Look up full customer record
   const cust = (customers || []).find(c => c.num === ap.custNum) || {};
@@ -4196,6 +4295,10 @@ ${hasRealCalls
               <div style={{ fontSize: "0.68rem", color: MUTED }}>No coordinates on file</div>
             )}
             <button onClick={onClose} style={{ background: "none", border: `1px solid ${BORDER}`, color: MUTED, borderRadius: 4, padding: "0.25rem 0.6rem", cursor: "pointer", fontSize: "0.7rem", marginTop: 2 }}>× Close Tab</button>
+            {!isInactive
+              ? <button onClick={() => setShowInactiveForm(true)} style={{ background: "#FEF2F2", border: "1px solid #FECACA", color: RED, borderRadius: 4, padding: "0.25rem 0.6rem", cursor: "pointer", fontSize: "0.7rem", marginTop: 2 }}>⊘ Mark Inactive</button>
+              : <button onClick={() => { if(window.confirm(`Reactivate ${ap.customer}?`)) onMarkActive(); }} style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", color: GREEN, borderRadius: 4, padding: "0.25rem 0.6rem", cursor: "pointer", fontSize: "0.7rem", marginTop: 2 }}>✓ Reactivate</button>
+            }
           </div>
         </div>
 
