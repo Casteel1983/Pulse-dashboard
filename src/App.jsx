@@ -188,6 +188,11 @@ const FALKEN_TBR_TIERS = [
   { label:"Entry",  min:0,   color:"#6B7A99" },
 ];
 
+
+// Austin Statesboro territory — SOS all depts, all others Ag/OTR/Industrial only
+// Source: W1-W21 2026 YTD as of 5/22/2026
+const STATESBORO_DATA = {"3000374":{"name":"SNIDER FLEET SOLUTIONS","total":1781.26,"depts":{"INDUSTRIAL TIRES":{"qty":2.0,"amount":429.44,"gp":55.93},"OFF THE ROAD TIRES":{"qty":2.0,"amount":1351.82,"gp":455.76}}},"3000104":{"name":"SOS TIRE & AUTO","total":1104661.1,"depts":{"ST TRAILER":{"qty":353.0,"amount":28012.32,"gp":3291.89},"RAD LT TRUCK":{"qty":711.0,"amount":68963.25,"gp":9825.66},"TRUCK TIRES":{"qty":4058.0,"amount":957721.29,"gp":27249.69},"OFF THE ROAD TIRES":{"qty":39.0,"amount":40999.18,"gp":995.44},"PASSENGER TIRES":{"qty":95.0,"amount":19882.94,"gp":808.04},"FARM TIRES":{"qty":4.0,"amount":3328.85,"gp":327.17},"INDUSTRIAL TIRES":{"qty":13.0,"amount":7148.45,"gp":145.81},"LAWN & GARDEN":{"qty":8.0,"amount":442.2,"gp":72.32},"PATCHES AND REPAIR":{"qty":5.0,"amount":15.0,"gp":12.35},"VALVE STEMS":{"qty":165.0,"amount":2447.15,"gp":1037.42},"WHEEL WEIGHTS":{"qty":72.0,"amount":2902.0,"gp":1351.43}}},"101363":{"name":"TERWILLIGER TIRE & AG","total":39768.61,"depts":{"FARM TIRES":{"qty":77.0,"amount":21476.16,"gp":2503.44},"INDUSTRIAL TIRES":{"qty":24.0,"amount":5543.48,"gp":650.24},"OFF THE ROAD TIRES":{"qty":7.0,"amount":12748.97,"gp":1303.89}}},"101995":{"name":"APPLING TIRE & SERVICE CENTER","total":23834.3,"depts":{"FARM TIRES":{"qty":32.0,"amount":13442.9,"gp":1450.09},"OFF THE ROAD TIRES":{"qty":3.0,"amount":9685.0,"gp":745.53},"INDUSTRIAL TIRES":{"qty":4.0,"amount":706.4,"gp":116.36}}},"3000719":{"name":"BCS AUTO TRUCK & TIRE SERVICE","total":4393.5,"depts":{"FARM TIRES":{"qty":20.0,"amount":4393.5,"gp":598.12}}},"3000714":{"name":"BROWER TIRE & OIL","total":14769.42,"depts":{"FARM TIRES":{"qty":61.0,"amount":12470.01,"gp":1248.42},"OFF THE ROAD TIRES":{"qty":6.0,"amount":2299.41,"gp":194.89}}},"100332":{"name":"COLLINS AND SONS TIRE","total":38137.1,"depts":{"OFF THE ROAD TIRES":{"qty":7.0,"amount":5091.39,"gp":366.4},"INDUSTRIAL TIRES":{"qty":53.0,"amount":19441.34,"gp":2187.08},"FARM TIRES":{"qty":67.0,"amount":13604.37,"gp":1611.72}}},"3000274":{"name":"FORKLIFT TIRE SPECIALIST LLC","total":91710.86,"depts":{"INDUSTRIAL TIRES":{"qty":473.0,"amount":91710.86,"gp":12568.74}}},"101186":{"name":"GLENNVILLE AUTO PARTS","total":5805.12,"depts":{"FARM TIRES":{"qty":14.0,"amount":5805.12,"gp":1145.63}}},"101278":{"name":"GORDY ENTERPRISES INC","total":10757.23,"depts":{"FARM TIRES":{"qty":50.0,"amount":14624.24,"gp":1759.09},"INDUSTRIAL TIRES":{"qty":6.0,"amount":1085.87,"gp":185.09}}},"101267":{"name":"JESUP TIRE SHOP","total":13184.31,"depts":{"INDUSTRIAL TIRES":{"qty":3.0,"amount":407.73,"gp":62.73},"FARM TIRES":{"qty":17.0,"amount":3430.1,"gp":329.14},"OFF THE ROAD TIRES":{"qty":16.0,"amount":9346.48,"gp":1043.32}}},"100489":{"name":"LUMBER CITY ENT/BURKETT TIRE","total":68559.74,"depts":{"OFF THE ROAD TIRES":{"qty":27.0,"amount":65294.5,"gp":1829.73},"FARM TIRES":{"qty":6.0,"amount":3265.24,"gp":318.66}}},"100166":{"name":"MASSEY OIL","total":13622.48,"depts":{"FARM TIRES":{"qty":19.0,"amount":7985.36,"gp":1363.27},"INDUSTRIAL TIRES":{"qty":15.0,"amount":5637.12,"gp":790.93}}},"3000306":{"name":"MOODY TIRE SERVICE INC.","total":375.43,"depts":{"INDUSTRIAL TIRES":{"qty":1.0,"amount":375.43,"gp":61.1}}},"101088":{"name":"MS GARAGE","total":1518.54,"depts":{"OFF THE ROAD TIRES":{"qty":2.0,"amount":834.54,"gp":59.32},"FARM TIRES":{"qty":4.0,"amount":503.16,"gp":85.32},"INDUSTRIAL TIRES":{"qty":1.0,"amount":180.84,"gp":39.69}}},"101231":{"name":"MS TIRE","total":24991.17,"depts":{"FARM TIRES":{"qty":38.0,"amount":24009.72,"gp":2330.08},"INDUSTRIAL TIRES":{"qty":3.0,"amount":981.45,"gp":180.24}}},"101212":{"name":"RANDYS WRECKER AND SERVICE","total":3549.32,"depts":{"FARM TIRES":{"qty":17.0,"amount":3265.58,"gp":541.08},"INDUSTRIAL TIRES":{"qty":2.0,"amount":283.74,"gp":55.0}}},"3000048":{"name":"SCREENS TIRE & MUFFLER","total":308.23,"depts":{"INDUSTRIAL TIRES":{"qty":3.0,"amount":233.68,"gp":35.38},"FARM TIRES":{"qty":1.0,"amount":74.55,"gp":8.8}}},"301222":{"name":"TATTNALL TIRE & BRAKE","total":3551.62,"depts":{"INDUSTRIAL TIRES":{"qty":2.0,"amount":489.17,"gp":53.34},"FARM TIRES":{"qty":22.0,"amount":3062.45,"gp":496.65}}},"100208":{"name":"WILLIAMS TIRE","total":22872.28,"depts":{"INDUSTRIAL TIRES":{"qty":7.0,"amount":1105.25,"gp":192.23},"OFF THE ROAD TIRES":{"qty":9.0,"amount":5124.91,"gp":846.5},"FARM TIRES":{"qty":78.0,"amount":16642.12,"gp":2346.78}}},"3000105":{"name":"ZEAGLER TIRE COMPANY","total":4519.63,"depts":{"OFF THE ROAD TIRES":{"qty":3.0,"amount":4519.63,"gp":889.25}}},"3000005":{"name":"CATES SALES & SERVICE INC.","total":3081.29,"depts":{"OFF THE ROAD TIRES":{"qty":1.0,"amount":1741.74,"gp":568.32},"FARM TIRES":{"qty":9.0,"amount":1339.55,"gp":240.33}}},"3000022":{"name":"DR. TIRE INC.","total":48085.1,"depts":{"INDUSTRIAL TIRES":{"qty":11.0,"amount":3931.16,"gp":476.34},"FARM TIRES":{"qty":50.0,"amount":23686.84,"gp":1796.59},"OFF THE ROAD TIRES":{"qty":10.0,"amount":20467.1,"gp":488.26}}},"101395":{"name":"K & L TIRE AND ALIGNMENT LLC","total":2207.22,"depts":{"FARM TIRES":{"qty":15.0,"amount":2207.22,"gp":402.72}}},"101242":{"name":"KREIDER REPAIR","total":632.26,"depts":{"FARM TIRES":{"qty":3.0,"amount":632.26,"gp":40.68}}},"100165":{"name":"MOSLEY TIRE ALIGN.& BRAKE CTR.","total":3037.01,"depts":{"INDUSTRIAL TIRES":{"qty":4.0,"amount":842.66,"gp":24.84},"OFF THE ROAD TIRES":{"qty":3.0,"amount":2613.0,"gp":378.33}}},"3000117":{"name":"SCREVEN TIRE","total":1277.82,"depts":{"FARM TIRES":{"qty":9.0,"amount":1132.49,"gp":197.65},"INDUSTRIAL TIRES":{"qty":1.0,"amount":145.33,"gp":7.42}}},"3000182":{"name":"SHEFFIELD OIL COMPANY INC","total":3730.47,"depts":{"FARM TIRES":{"qty":17.0,"amount":3330.37,"gp":461.34},"INDUSTRIAL TIRES":{"qty":2.0,"amount":400.1,"gp":51.82}}},"3000023":{"name":"SOUTHSIDE WRENS TIRE & BRAKE","total":1188.74,"depts":{"FARM TIRES":{"qty":4.0,"amount":1188.74,"gp":169.9}}},"101849":{"name":"TOTAL TIRE & AUTO CARE","total":15792.24,"depts":{"INDUSTRIAL TIRES":{"qty":14.0,"amount":3324.01,"gp":590.38},"OFF THE ROAD TIRES":{"qty":4.0,"amount":3498.66,"gp":470.94},"FARM TIRES":{"qty":38.0,"amount":8969.57,"gp":1321.81}}},"3000268":{"name":"BOOM BOOMS TIRE SHOP","total":15354.03,"depts":{"FARM TIRES":{"qty":18.0,"amount":9321.26,"gp":1263.11},"OFF THE ROAD TIRES":{"qty":2.0,"amount":2616.8,"gp":297.01},"INDUSTRIAL TIRES":{"qty":3.0,"amount":3415.97,"gp":382.86}}},"3000463":{"name":"FOUR HOLES SALES & SERVICE","total":3444.07,"depts":{"INDUSTRIAL TIRES":{"qty":13.0,"amount":2600.65,"gp":374.67},"FARM TIRES":{"qty":6.0,"amount":843.42,"gp":114.12}}},"201061":{"name":"HEAVY DUTY TIRE","total":3165.01,"depts":{"OFF THE ROAD TIRES":{"qty":3.0,"amount":1680.55,"gp":386.21},"INDUSTRIAL TIRES":{"qty":5.0,"amount":1484.46,"gp":101.92}}},"3000312":{"name":"SNIDER FLEET SOLUTIONS","total":5710.96,"depts":{"OFF THE ROAD TIRES":{"qty":3.0,"amount":6628.5,"gp":327.5}}},"3000121":{"name":"THOMSON TIRE CO.","total":562.74,"depts":{"OFF THE ROAD TIRES":{"qty":1.0,"amount":562.74,"gp":95.16}}},"3000562":{"name":"CHESTER SERVICES","total":272.5,"depts":{"INDUSTRIAL TIRES":{"qty":2.0,"amount":272.5,"gp":72.96}}},"3000732":{"name":"HEAVY DUTY TIRES","total":4303.7,"depts":{"INDUSTRIAL TIRES":{"qty":9.0,"amount":2176.3,"gp":208.48},"FARM TIRES":{"qty":11.0,"amount":2127.4,"gp":208.89}}},"3000025":{"name":"JASONS STATION","total":1339.62,"depts":{"FARM TIRES":{"qty":13.0,"amount":1339.62,"gp":168.48}}},"3000270":{"name":"JIM WHITEHEADS TIRE & SERVICE","total":7169.22,"depts":{"OFF THE ROAD TIRES":{"qty":3.0,"amount":2695.32,"gp":349.05},"INDUSTRIAL TIRES":{"qty":24.0,"amount":4473.9,"gp":777.44}}},"100262":{"name":"QUALITY TIRE CO.","total":3250.95,"depts":{"FARM TIRES":{"qty":10.0,"amount":3074.35,"gp":352.67},"INDUSTRIAL TIRES":{"qty":1.0,"amount":176.6,"gp":29.09}}},"101455":{"name":"AMERSON'S SALVAGE & USED CARS","total":1145.33,"depts":{"OFF THE ROAD TIRES":{"qty":1.0,"amount":1145.33,"gp":222.37}}},"101202":{"name":"BLOCKERS STATION","total":2011.25,"depts":{"FARM TIRES":{"qty":13.0,"amount":2011.25,"gp":306.02}}},"3000278":{"name":"KENS TIRE LLC","total":1405.97,"depts":{"FARM TIRES":{"qty":4.0,"amount":1405.97,"gp":175.36}}},"3000046":{"name":"R&R MOTOR COMPANY INC.","total":955.01,"depts":{"FARM TIRES":{"qty":5.0,"amount":559.78,"gp":121.07},"INDUSTRIAL TIRES":{"qty":1.0,"amount":395.23,"gp":61.0}}},"3000728":{"name":"RTS COMMERCIAL TIRES","total":1350.51,"depts":{"INDUSTRIAL TIRES":{"qty":2.0,"amount":318.8,"gp":33.38},"FARM TIRES":{"qty":2.0,"amount":628.04,"gp":108.52},"OFF THE ROAD TIRES":{"qty":1.0,"amount":403.67,"gp":43.72}}},"3000249":{"name":"STAR GARAGE INC.","total":229.19,"depts":{"INDUSTRIAL TIRES":{"qty":1.0,"amount":229.19,"gp":30.41}}},"100224":{"name":"WARDS SERVICE CENTER","total":384.88,"depts":{"FARM TIRES":{"qty":4.0,"amount":384.88,"gp":131.0}}},"3000402":{"name":"GLENVILLE TIRE","total":1725.24,"depts":{"INDUSTRIAL TIRES":{"qty":1.0,"amount":118.6,"gp":24.5},"FARM TIRES":{"qty":4.0,"amount":1606.64,"gp":190.54}}},"3000181":{"name":"GOODYEAR TIRE & SERVICE CENTER","total":229.34,"depts":{"FARM TIRES":{"qty":2.0,"amount":229.34,"gp":22.94}}},"101393":{"name":"HADDENS AUTO REPAIR","total":23318.28,"depts":{"INDUSTRIAL TIRES":{"qty":36.0,"amount":23318.28,"gp":1722.2}}},"3000026":{"name":"HWY 25 EXPRESS LLC","total":3070.04,"depts":{"FARM TIRES":{"qty":3.0,"amount":3070.04,"gp":211.21}}},"3000376":{"name":"PRIORITY TIRE (SBORO WHSE)","total":2716.99,"depts":{"INDUSTRIAL TIRES":{"qty":8.0,"amount":2638.72,"gp":291.68},"FARM TIRES":{"qty":1.0,"amount":78.27,"gp":13.24}}},"3000357":{"name":"SIMPLE TIRE - STATESBORO","total":525.66,"depts":{"INDUSTRIAL TIRES":{"qty":4.0,"amount":525.66,"gp":54.0}}},"100619":{"name":"WAYNE CO. TIRE & SERVICE INC","total":94.22,"depts":{"FARM TIRES":{"qty":1.0,"amount":94.22,"gp":19.21}}},"102367":{"name":"A.S.A.P MOBILE TIRE SALES","total":722.21,"depts":{"FARM TIRES":{"qty":4.0,"amount":722.21,"gp":91.37}}},"3000332":{"name":"BLACKS TIRE SERVICE INC.","total":930.0,"depts":{"FARM TIRES":{"qty":6.0,"amount":930.0,"gp":159.36}}},"101793":{"name":"COTTONS TIRE","total":83.76,"depts":{"FARM TIRES":{"qty":1.0,"amount":83.76,"gp":7.87}}},"3000453":{"name":"MORRELL TIRE SERVICE INC.","total":16679.47,"depts":{"FARM TIRES":{"qty":77.0,"amount":16679.47,"gp":1654.06}}},"3000706":{"name":"SOUTHERN TIRE MART #150","total":2095.99,"depts":{"FARM TIRES":{"qty":4.0,"amount":1612.87,"gp":205.98},"INDUSTRIAL TIRES":{"qty":3.0,"amount":483.12,"gp":39.41}}},"101344":{"name":"THE TIRE KING OF STATESBORO","total":120.97,"depts":{"INDUSTRIAL TIRES":{"qty":1.0,"amount":120.97,"gp":26.73}}},"3000377":{"name":"TIRESEASY-LLC (SBORO WHSE)","total":3104.0,"depts":{"FARM TIRES":{"qty":8.0,"amount":3104.0,"gp":337.2}}},"3000109":{"name":"CLEMENS TRUCK REPAIR","total":290.82,"depts":{"FARM TIRES":{"qty":2.0,"amount":290.82,"gp":46.0}}},"101185":{"name":"LAKES ALIGNMENT SERVICE","total":1904.1,"depts":{"INDUSTRIAL TIRES":{"qty":8.0,"amount":1904.1,"gp":50.52}}},"3000718":{"name":"DAVIS TIRE (SPRINGFIELD)","total":60.42,"depts":{"INDUSTRIAL TIRES":{"qty":1.0,"amount":60.42,"gp":8.39}}},"101378":{"name":"GRADYS TRUCK STOP","total":522.49,"depts":{"FARM TIRES":{"qty":3.0,"amount":522.49,"gp":66.62}}},"3000107":{"name":"JOHNSON TIRE & AUTO","total":93.58,"depts":{"FARM TIRES":{"qty":1.0,"amount":93.58,"gp":17.24}}},"100412":{"name":"PERFORMANCE TIRE & AUTO CARE","total":77.73,"depts":{"FARM TIRES":{"qty":1.0,"amount":77.73,"gp":6.66}}},"3000342":{"name":"STILSON TIRE CONNECTION","total":85.91,"depts":{"FARM TIRES":{"qty":1.0,"amount":85.91,"gp":9.99}}},"3000372":{"name":"CATES EXPRESS LLC","total":1357.96,"depts":{"FARM TIRES":{"qty":4.0,"amount":1357.96,"gp":144.4}}},"3000459":{"name":"SAVANNAH GLOBAL SOLUTIONS","total":4390.54,"depts":{"OFF THE ROAD TIRES":{"qty":2.0,"amount":4390.54,"gp":351.24}}},"3000198":{"name":"BROTHERS TIRE & SERVICE LLC","total":285.01,"depts":{"FARM TIRES":{"qty":2.0,"amount":142.81,"gp":12.01},"INDUSTRIAL TIRES":{"qty":1.0,"amount":142.2,"gp":4.29}}},"3000013":{"name":"CLARKS AUTO REPAIR","total":361.68,"depts":{"INDUSTRIAL TIRES":{"qty":2.0,"amount":361.68,"gp":79.38}}},"3000171":{"name":"MCCORKLE SALES INC.","total":203.74,"depts":{"INDUSTRIAL TIRES":{"qty":1.0,"amount":203.74,"gp":30.72}}},"3000561":{"name":"ADAMS AUTO LLC","total":72.54,"depts":{"FARM TIRES":{"qty":1.0,"amount":72.54,"gp":13.15}}},"3000429":{"name":"HOLLAND TIRE","total":848.26,"depts":{"FARM TIRES":{"qty":6.0,"amount":848.26,"gp":117.8}}},"3000053":{"name":"JK&T TIRE & AUTO","total":60.42,"depts":{"INDUSTRIAL TIRES":{"qty":1.0,"amount":60.42,"gp":8.39}}},"3000021":{"name":"LANE TRACTOR & AUTO LLC","total":290.82,"depts":{"FARM TIRES":{"qty":2.0,"amount":290.82,"gp":46.0}}},"101237":{"name":"SOUTHEAST TIRE AND SERVICE","total":468.28,"depts":{"FARM TIRES":{"qty":5.0,"amount":468.28,"gp":62.67}}},"3000447":{"name":"MCCARTHY TIRE SERVICE COMPANY","total":2774.52,"depts":{"OFF THE ROAD TIRES":{"qty":3.0,"amount":2774.52,"gp":180.03}}},"101377":{"name":"BUTLER TIRE AND LUBE","total":83.76,"depts":{"FARM TIRES":{"qty":1.0,"amount":83.76,"gp":7.78}}},"301223":{"name":"JAMES TIRE 2","total":82.01,"depts":{"FARM TIRES":{"qty":1.0,"amount":82.01,"gp":4.08}}},"3000442":{"name":"SMITH BROS. TIRE SERVICE INC","total":1769.78,"depts":{"OFF THE ROAD TIRES":{"qty":2.0,"amount":1769.78,"gp":218.58}}},"101679":{"name":"JAM SALES INC","total":243.4,"depts":{"FARM TIRES":{"qty":2.0,"amount":243.4,"gp":63.18}}},"102273":{"name":"COMPLETE TIRE & SVC (CORDELE)","total":213.84,"depts":{"INDUSTRIAL TIRES":{"qty":4.0,"amount":213.84,"gp":19.64}}},"3000027":{"name":"SOUTH GA COMMERCIAL LUBE LLC","total":209.86,"depts":{"FARM TIRES":{"qty":1.0,"amount":209.86,"gp":35.8}}},"3000426":{"name":"GOODYEAR COMMERCIAL TIRE & SVC","total":239.5,"depts":{"FARM TIRES":{"qty":1.0,"amount":239.5,"gp":23.95}}},"3000281":{"name":"DORSEY AUTO CARE","total":178.62,"depts":{"INDUSTRIAL TIRES":{"qty":3.0,"amount":178.62,"gp":22.53}}},"101290":{"name":"PETES NEW AND USED TIRES","total":60.0,"depts":{"FARM TIRES":{"qty":1.0,"amount":60.0,"gp":6.73}}}};
+
 const TABS = [
   { id: "setup",    label: "⬡ Files" },
   { id: "overview", label: "Overview" },
@@ -681,6 +686,33 @@ Keep it concise and actionable, written for a sales manager.` }]
         </div>
       )}
 
+      {/* Suggestions & Bug Reports */}
+      {suggestions.length > 0 && (
+        <div style={{ ...S.card, marginBottom:"1rem" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.75rem" }}>
+            <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#7C3AED", textTransform:"uppercase", letterSpacing:"0.1em" }}>
+              💡 Suggestions & Bug Reports <span style={{ color:MUTED, fontWeight:400 }}>({suggestions.length})</span>
+            </div>
+            <button onClick={()=>{ localStorage.removeItem("pulse_suggestions"); setSuggestions([]); }}
+              style={{ fontSize:"0.65rem", color:RED, background:"#FEF2F2", border:`1px solid #FECACA`, borderRadius:4, padding:"0.25rem 0.5rem", cursor:"pointer" }}>
+              Clear All
+            </button>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {suggestions.map((s,i) => (
+              <div key={i} style={{ padding:"0.5rem 0.75rem", background: s.type==="bug"?"#FEF2F2":"#F5F3FF", border:`1px solid ${s.type==="bug"?"#FECACA":"#DDD6FE"}`, borderRadius:6 }}>
+                <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:3 }}>
+                  <span style={{ fontSize:"0.75rem" }}>{s.type==="bug"?"🐛":"💡"}</span>
+                  <span style={{ fontSize:"0.7rem", fontWeight:700, color: s.type==="bug"?RED:"#7C3AED" }}>{s.type==="bug"?"BUG REPORT":"SUGGESTION"}</span>
+                  <span style={{ fontSize:"0.65rem", color:MUTED }}>{s.user} · {new Date(s.ts).toLocaleDateString()}</span>
+                </div>
+                <div style={{ fontSize:"0.75rem", color:TEXT, paddingLeft:26 }}>{s.text}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Activity log */}
       <div style={S.card}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.75rem", flexWrap:"wrap", gap:8 }}>
@@ -688,6 +720,7 @@ Keep it concise and actionable, written for a sales manager.` }]
             Activity Log <span style={{ color:MUTED, fontWeight:400 }}>({filtered.length} entries)</span>
           </div>
           <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+            <button onClick={refreshLog} style={{ fontSize:"0.68rem", color:AMBER, background:"#EEF4FF", border:`1px solid ${BORDER}`, borderRadius:4, padding:"0.3rem 0.65rem", cursor:"pointer" }}>↺ Refresh</button>
             <select value={filter} onChange={e=>setFilter(e.target.value)}
               style={{ background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT, padding:"0.3rem 0.5rem", borderRadius:4, fontSize:"0.7rem" }}>
               <option value="all">All Users</option>
@@ -811,21 +844,15 @@ export default function App() {
   })();
 
   // Activity logger — writes to shared storage for admin view
-  async function logActivity(action, detail) {
-    if (!currentUser) return;
+  function logActivity(action, detail, userOverride) {
+    const u = userOverride || currentUser;
+    if (!u) return;
     try {
-      const key = `activity_log`;
       let existing = [];
-      try { const rv=localStorage.getItem("shared_"+key); if(rv) existing=JSON.parse(rv); } catch {}
-      const entry = {
-        ts: new Date().toISOString(),
-        user: currentUser.name,
-        userId: currentUser.id,
-        action,
-        detail,
-      };
-      const updated = [entry, ...existing].slice(0, 500); // keep last 500
-      localStorage.setItem("shared_"+key, JSON.stringify(updated));
+      try { const rv = localStorage.getItem("shared_activity_log"); if(rv) existing = JSON.parse(rv); } catch {}
+      const entry = { ts: new Date().toISOString(), user: u.name, userId: u.id, action, detail };
+      const updated = [entry, ...existing].slice(0, 1000);
+      localStorage.setItem("shared_activity_log", JSON.stringify(updated));
     } catch {}
   }
 
@@ -950,7 +977,7 @@ export default function App() {
   });
 
   if (!currentUser) {
-    return <LoginScreen onLogin={user => { setCurrentUser(user); logActivity("login","Logged in"); }} />;
+    return <LoginScreen onLogin={user => { setCurrentUser(user); logActivity("login","Logged in", user); }} />;
   }
 
   return (
@@ -973,6 +1000,22 @@ export default function App() {
             <span style={{ fontSize:"0.72rem", fontWeight:700, color:"#FFFFFF" }}>
               <span style={{ opacity:0.7, fontWeight:400 }}>Logged in: </span>{currentUser.name}
             </span>
+            <button
+              onClick={() => {
+                const type = window.confirm("Is this a bug? Click OK for bug, Cancel for suggestion.") ? "bug" : "suggestion";
+                const text = window.prompt(`${type === "bug" ? "🐛 Describe the bug:" : "💡 Enter your suggestion:"}`);
+                if (text && text.trim()) {
+                  try {
+                    const existing = JSON.parse(localStorage.getItem("pulse_suggestions") || "[]");
+                    const entry = { ts: new Date().toISOString(), user: currentUser?.name || "Unknown", userId: currentUser?.id || "", type, text: text.trim() };
+                    localStorage.setItem("pulse_suggestions", JSON.stringify([entry, ...existing].slice(0, 100)));
+                    alert("✓ Submitted! Your feedback has been logged for Admin review.");
+                  } catch {}
+                }
+              }}
+              style={{ fontSize:"0.65rem", color:"rgba(255,255,255,0.8)", background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.25)", borderRadius:4, padding:"2px 8px", cursor:"pointer" }}>
+              💡 Feedback
+            </button>
             <button
               onClick={() => { logActivity("logout","Logged out"); localStorage.removeItem("pulse_remembered_user"); setCurrentUser(null); }}
               style={{ fontSize:"0.65rem", color:"rgba(255,255,255,0.8)", background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:4, padding:"2px 8px", cursor:"pointer" }}>
@@ -1594,6 +1637,7 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
       <div style={{ ...S.subNav, marginBottom:"0.75rem" }}>
         <button style={S.subBtn(repSubTab==="accounts", color)} onClick={()=>setRepSubTab("accounts")}>📋 Accounts</button>
         <button style={S.subBtn(repSubTab==="ad",       "#059669")} onClick={()=>setRepSubTab("ad")}>🏆 AD Programs</button>
+        {isAustin && <button style={S.subBtn(repSubTab==="statesboro", "#0891B2")} onClick={()=>setRepSubTab("statesboro")}>📍 Statesboro</button>}
         <button style={S.subBtn(repSubTab==="specials", "#D97706")} onClick={()=>setRepSubTab("specials")}>🏷 Specials</button>
       </div>
 
@@ -1602,6 +1646,9 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
       )}
       {repSubTab === "ad" && (
         <RepADTab actionPlan={actionPlan} repName={repName} color={color} onCustomerClick={onCustomerClick} />
+      )}
+      {repSubTab === "statesboro" && isAustin && (
+        <StatesboroTab />
       )}
       {repSubTab === "specials" && (
         <SpecialsTab repName={repName} color={color} />
@@ -2137,6 +2184,177 @@ function MapTab({ customers, weekComp }) {
   );
 }
 
+
+
+// ── Statesboro Tab ────────────────────────────────────────────────────────────
+function StatesboroTab() {
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("total");
+  const [deptFilter, setDeptFilter] = useState("All");
+  const [expandedCust, setExpandedCust] = useState(null);
+
+  const SOS_NUM = "3000104";
+  const AG_OTR_IND = ["FARM TIRES","INDUSTRIAL TIRES","OFF THE ROAD TIRES"];
+
+  const allAccounts = Object.entries(STATESBORO_DATA).map(([cnum, d]) => ({
+    cnum, ...d,
+    isSOS: cnum === SOS_NUM,
+    totalGP: Object.values(d.depts).reduce((s,v)=>s+(v.gp||0),0),
+    topDept: Object.entries(d.depts).sort((a,b)=>b[1].amount-a[1].amount)[0]?.[0] || "",
+  }));
+
+  // Dept filter options
+  const allDepts = [...new Set(allAccounts.flatMap(a => Object.keys(a.depts)))].sort();
+  const deptOptions = ["All", ...AG_OTR_IND, ...allDepts.filter(d => !AG_OTR_IND.includes(d))];
+
+  const filtered = allAccounts
+    .filter(a => !search || a.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(a => deptFilter === "All" || a.depts[deptFilter])
+    .sort((a,b) => {
+      if (a.isSOS && !b.isSOS) return -1;
+      if (!a.isSOS && b.isSOS) return 1;
+      if (sortBy === "total") return b.total - a.total;
+      if (sortBy === "gp") return b.totalGP - a.totalGP;
+      return a.name.localeCompare(b.name);
+    });
+
+  const grandTotal = allAccounts.reduce((s,a)=>s+a.total,0);
+  const grandGP    = allAccounts.reduce((s,a)=>s+a.totalGP,0);
+  const sosAcct    = allAccounts.find(a=>a.isSOS);
+
+  return (
+    <div>
+      {/* KPI row */}
+      <div style={S.kpiRow}>
+        <div style={S.kpi("#0891B2")}>
+          <div style={S.kpiVal}>{fmt(grandTotal)}</div>
+          <div style={S.kpiLbl}>Statesboro YTD 2026</div>
+        </div>
+        <div style={S.kpi(GREEN)}>
+          <div style={S.kpiVal}>{fmt(grandGP)}</div>
+          <div style={S.kpiLbl}>Total GP$</div>
+        </div>
+        <div style={S.kpi(AMBER)}>
+          <div style={S.kpiVal}>{pct(grandTotal > 0 ? grandGP/grandTotal : 0)}</div>
+          <div style={S.kpiLbl}>Blended GP%</div>
+        </div>
+        <div style={S.kpi(MUTED)}>
+          <div style={S.kpiVal}>{allAccounts.length}</div>
+          <div style={S.kpiLbl}>Active Accounts</div>
+        </div>
+      </div>
+
+      {/* SOS callout */}
+      {sosAcct && (
+        <div style={{ ...S.card, borderLeft:"4px solid #D97706", marginBottom:"0.85rem", background:"#FFFBEB" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:8 }}>
+            <div>
+              <div style={{ fontSize:"0.8rem", fontWeight:700, color:"#D97706" }}>⭐ SOS TIRE & AUTO — Strategic Account</div>
+              <div style={{ fontSize:"0.68rem", color:MUTED, marginTop:2 }}>Customer #{SOS_NUM} · All departments tracked</div>
+            </div>
+            <div style={{ fontSize:"1.05rem", fontWeight:800, color:"#D97706" }}>{fmt(sosAcct.total)}</div>
+          </div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:"0.75rem" }}>
+            {Object.entries(sosAcct.depts).sort((a,b)=>b[1].amount-a[1].amount).map(([dept,v])=>(
+              <div key={dept} style={{ background:"#FEF3C7", border:"1px solid #FDE68A", borderRadius:6, padding:"0.3rem 0.65rem", fontSize:"0.68rem" }}>
+                <span style={{ fontWeight:700, color:"#92400E" }}>{dept}</span>
+                <span style={{ color:MUTED, marginLeft:4 }}>{fmt(v.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div style={{ display:"flex", gap:8, marginBottom:"0.75rem", flexWrap:"wrap", alignItems:"center" }}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search account..."
+          style={{ background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT, padding:"0.35rem 0.7rem", borderRadius:4, fontSize:"0.7rem", width:180 }} />
+        <div style={{ position:"relative" }}>
+          <select value={deptFilter} onChange={e=>setDeptFilter(e.target.value)}
+            style={{ appearance:"none", background:"#FFFFFF", border:`2px solid ${deptFilter!=="All"?"#0891B2":BORDER}`, borderRadius:6,
+              color:deptFilter!=="All"?"#0891B2":TEXT, fontWeight:deptFilter!=="All"?700:400,
+              padding:"0.35rem 1.75rem 0.35rem 0.65rem", fontSize:"0.7rem", cursor:"pointer", outline:"none" }}>
+            {deptOptions.map(d=><option key={d} value={d}>{d}</option>)}
+          </select>
+          <span style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", pointerEvents:"none", color:MUTED, fontSize:"0.65rem" }}>▼</span>
+        </div>
+        <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+          style={{ background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT, padding:"0.35rem 0.5rem", borderRadius:4, fontSize:"0.7rem" }}>
+          <option value="total">Sort: Revenue</option>
+          <option value="gp">Sort: GP$</option>
+          <option value="name">Sort: Name</option>
+        </select>
+        <span style={{ color:MUTED, fontSize:"0.65rem", marginLeft:"auto" }}>{filtered.length} accounts · W1–W21</span>
+      </div>
+
+      {/* Account list */}
+      <div style={S.card}>
+        <div style={{ overflowX:"auto" }}>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                <th style={S.th}>Account</th>
+                <th style={{ ...S.th, textAlign:"right" }}>YTD Revenue</th>
+                <th style={{ ...S.th, textAlign:"right" }}>GP$</th>
+                <th style={{ ...S.th, textAlign:"right" }}>GP%</th>
+                <th style={S.th}>Top Dept</th>
+                <th style={S.th}>Segments</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((a,i) => (
+                <>
+                  <tr key={a.cnum}
+                    onClick={()=>setExpandedCust(expandedCust===a.cnum ? null : a.cnum)}
+                    style={{ cursor:"pointer", background: expandedCust===a.cnum ? "#EEF4FF" : "transparent" }}
+                    onMouseEnter={e=>{ if(expandedCust!==a.cnum) e.currentTarget.style.background="#F4F7FB"; }}
+                    onMouseLeave={e=>{ if(expandedCust!==a.cnum) e.currentTarget.style.background="transparent"; }}>
+                    <td style={{ ...S.td, fontWeight:600, color: a.isSOS ? "#D97706" : AMBER }}>
+                      {a.isSOS ? "⭐ " : "↗ "}{a.name}
+                      <span style={{ fontSize:"0.62rem", color:MUTED, fontWeight:400, marginLeft:4 }}>#{a.cnum}</span>
+                    </td>
+                    <td style={{ ...S.td, textAlign:"right", fontWeight:700 }}>{fmt(a.total)}</td>
+                    <td style={{ ...S.td, textAlign:"right", color:GREEN }}>{fmt(a.totalGP)}</td>
+                    <td style={{ ...S.td, textAlign:"right", color: a.total>0 && a.totalGP/a.total < 0.08 ? RED : GREEN }}>
+                      {a.total > 0 ? pct(a.totalGP/a.total) : "—"}
+                    </td>
+                    <td style={{ ...S.td, fontSize:"0.68rem" }}>{a.topDept}</td>
+                    <td style={{ ...S.td }}>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:3 }}>
+                        {Object.keys(a.depts).map(d=>(
+                          <span key={d} style={{ fontSize:"0.58rem", background: AG_OTR_IND.includes(d)?"#D1FAE5":"#F4F7FB",
+                            color: AG_OTR_IND.includes(d)?GREEN:MUTED, borderRadius:6, padding:"1px 5px", border:`1px solid ${AG_OTR_IND.includes(d)?"#BBF7D0":BORDER}` }}>
+                            {d}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                  {expandedCust === a.cnum && (
+                    <tr key={`${a.cnum}_exp`}>
+                      <td colSpan={6} style={{ ...S.td, background:"#F8FAFF", padding:"0.75rem 1rem" }}>
+                        <div style={{ fontSize:"0.7rem", fontWeight:600, color:MUTED, marginBottom:"0.5rem", textTransform:"uppercase", letterSpacing:"0.08em" }}>Department Breakdown</div>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                          {Object.entries(a.depts).sort((x,y)=>y[1].amount-x[1].amount).map(([dept,v])=>(
+                            <div key={dept} style={{ background:"#FFFFFF", border:`1px solid ${AG_OTR_IND.includes(dept)?"#BBF7D0":BORDER}`, borderRadius:6, padding:"0.4rem 0.75rem", minWidth:140 }}>
+                              <div style={{ fontSize:"0.68rem", fontWeight:700, color: AG_OTR_IND.includes(dept)?GREEN:TEXT }}>{dept}</div>
+                              <div style={{ fontSize:"0.75rem", fontWeight:700, color:AMBER, marginTop:2 }}>{fmt(v.amount)}</div>
+                              <div style={{ fontSize:"0.65rem", color:MUTED }}>{v.qty} units · GP {pct(v.amount>0?v.gp/v.amount:0)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Specials Tab ──────────────────────────────────────────────────────────────
 function SpecialsTab({ repName, color }) {
@@ -4147,6 +4365,18 @@ function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecor
   const [inactiveReason, setInactiveReason] = useState("");
   const isInactive = !!inactiveRecord;
 
+  // Persistent notes for this customer
+  const notesKey = `notes_${ap.custNum}`;
+  const [notes, setNotes] = useState(() => {
+    try { return localStorage.getItem(notesKey) || ""; } catch { return ""; }
+  });
+  const [notesDirty, setNotesDirty] = useState(false);
+  function saveNotes(val) {
+    setNotes(val);
+    setNotesDirty(true);
+    try { localStorage.setItem(notesKey, val); setNotesDirty(false); } catch {}
+  }
+
   // Look up full customer record
   const cust = (customers || []).find(c => c.num === ap.custNum) || {};
   const arRecord = (ar || []).find(r => r.custNum === ap.custNum) || null;
@@ -4520,6 +4750,25 @@ ${hasRealCalls
       )}
 
       {/* Calls */}
+      {/* Persistent notes — shown on calls tab */}
+      {subTab === "calls" && (
+        <div style={{ ...S.card, marginTop:"0.85rem" }}>
+          <div style={{ fontSize:"0.7rem", fontWeight:700, color:MUTED, textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:"0.6rem" }}>
+            📝 Rep Notes <span style={{ fontSize:"0.62rem", fontWeight:400, color:MUTED }}>(saved automatically)</span>
+          </div>
+          <textarea
+            value={notes}
+            onChange={e => saveNotes(e.target.value)}
+            placeholder={`Add notes for ${ap.customer}... (pricing discussions, relationship notes, follow-up items, etc.)`}
+            rows={5}
+            style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT, padding:"0.6rem 0.75rem", borderRadius:6, fontSize:"0.78rem", resize:"vertical", boxSizing:"border-box", lineHeight:1.7, outline:"none" }}
+            onFocus={e => e.target.style.borderColor=AMBER}
+            onBlur={e => e.target.style.borderColor=BORDER}
+          />
+          {notes && <div style={{ fontSize:"0.62rem", color:GREEN, marginTop:4 }}>✓ Saved to this device</div>}
+        </div>
+      )}
+
       {subTab === "ad" && adProgram && (
         <ADProgramTab adProgram={adProgram} custName={ap.customer} />
       )}
