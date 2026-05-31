@@ -2216,10 +2216,8 @@ function RepTodoTab({ repName, actionPlan, onCustomerClick, color }) {
       // Build rep context
       const repAP = actionPlan.filter(a => a.salesman === repName || a.salesman?.toLowerCase() === repName.toLowerCase());
       const sorted = [...repAP].sort((a,b) => b.change - a.change);
-      const top5   = sorted.slice(0,5).map(a => `${a.customer} (${a.city}): $${a.sales2026.toFixed(0)} 2026, ${a.change>=0?"+":""}$${a.change.toFixed(0)} vs PY, top dept: ${a.topDept}`).join("
-");
-      const bot5   = sorted.slice(-5).map(a => `${a.customer} (${a.city}): $${a.sales2026.toFixed(0)} 2026, ${a.change>=0?"+":""}$${a.change.toFixed(0)} vs PY`).join("
-");
+      const top5   = sorted.slice(0,5).map(a => `${a.customer} (${a.city}): $${a.sales2026.toFixed(0)} 2026, ${a.change>=0?"+":""}$${a.change.toFixed(0)} vs PY, top dept: ${a.topDept}`).join("\n");
+      const bot5   = sorted.slice(-5).map(a => `${a.customer} (${a.city}): $${a.sales2026.toFixed(0)} 2026, ${a.change>=0?"+":""}$${a.change.toFixed(0)} vs PY`).join("\n");
       const declined = repAP.filter(a=>a.change<0).length;
 
       // Gather open todos
@@ -2264,12 +2262,10 @@ MOST DECLINED ACCOUNTS:
 ${bot5}
 
 AD PROGRAM ENROLLMENTS:
-${adEnrolled.length > 0 ? adEnrolled.join("
-") : "No program enrollments found"}
+${adEnrolled.length > 0 ? adEnrolled.join("\n") : "No program enrollments found"}
 
 OPEN TO-DOS (${openTodos.length} total):
-${openTodos.slice(0,10).join("
-") || "None"}
+${openTodos.slice(0,10).join("\n") || "None"}
 
 Generate a focused, prioritized action plan for ${repName} with:
 1. Top 3 accounts to visit this week and WHY
