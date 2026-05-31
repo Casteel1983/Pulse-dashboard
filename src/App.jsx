@@ -206,6 +206,71 @@ const YOKOHAMA_TIERS = [
   { label:"Entry",  min:0,   color:"#6B7A99" },
 ];
 
+
+// ── Supabase Sync ─────────────────────────────────────────────────────────────
+const SB_URL = "https://jcdajvjvengtbjdrbrsp.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZGFqdmp2ZW5ndGJqZHJicnNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNjAzMzAsImV4cCI6MjA5NTgzNjMzMH0.OAzY4yuYzv-9D5UwwQW5Aqw6QpcVWHk6o_4_eecdx3k";
+
+async function sbFetch(path, method="GET", body=null) {
+  try {
+    const opts = {
+      method,
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": `Bearer ${SB_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": method==="POST" ? "resolution=merge-duplicates,return=minimal" : "return=minimal",
+      },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`${SB_URL}/rest/v1/${path}`, opts);
+    if (!res.ok) return null;
+    const txt = await res.text();
+    return txt ? JSON.parse(txt) : null;
+  } catch { return null; }
+}
+
+// Notes sync
+async function syncNotesUp(userId, custNum, notes) {
+  await sbFetch("rep_notes", "POST", { user_id:userId, cust_num:String(custNum), notes, updated_at:new Date().toISOString() });
+}
+async function syncNotesDown(userId, custNum) {
+  const rows = await sbFetch(`rep_notes?user_id=eq.${encodeURIComponent(userId)}&cust_num=eq.${encodeURIComponent(custNum)}&select=notes,updated_at`);
+  return rows?.[0] || null;
+}
+
+// Todos sync
+async function syncTodosUp(userId, custNum, custName, city, salesman, todos) {
+  // Delete all existing todos for this customer/user then re-insert
+  await sbFetch(`rep_todos?user_id=eq.${encodeURIComponent(userId)}&cust_num=eq.${encodeURIComponent(custNum)}`, "DELETE");
+  if (todos.length === 0) return;
+  const rows = todos.map(t => ({
+    user_id: userId, cust_num: String(custNum),
+    cust_name: custName, city, salesman,
+    text: t.text, done: t.done,
+    created_date: t.date, created_by: t.by,
+  }));
+  await sbFetch("rep_todos", "POST", rows);
+}
+async function syncTodosDown(userId, custNum) {
+  const rows = await sbFetch(`rep_todos?user_id=eq.${encodeURIComponent(userId)}&cust_num=eq.${encodeURIComponent(custNum)}&order=created_at.asc`);
+  if (!rows) return null;
+  return rows.map(r => ({ id: r.id, text: r.text, done: r.done, date: r.created_date, by: r.created_by }));
+}
+async function syncAllTodosDown(userId) {
+  const rows = await sbFetch(`rep_todos?user_id=eq.${encodeURIComponent(userId)}&order=created_at.asc`);
+  return rows || null;
+}
+
+// AI plan sync
+async function syncAIPlanUp(userId, plan, generatedAt) {
+  await sbFetch("rep_ai_plans", "POST", { user_id:userId, plan, generated_at:generatedAt, updated_at:new Date().toISOString() });
+}
+async function syncAIPlanDown(userId) {
+  const rows = await sbFetch(`rep_ai_plans?user_id=eq.${encodeURIComponent(userId)}&select=plan,generated_at`);
+  return rows?.[0] || null;
+}
+
 const TABS = [
   { id: "setup",    label: "⬡ Files" },
   { id: "overview", label: "Overview" },
@@ -990,8 +1055,10 @@ export default function App() {
   });
 
   if (!currentUser) {
-    return <LoginScreen onLogin={user => { setCurrentUser(user); logActivity("login","Logged in", user); }} />;
+    return <LoginScreen onLogin={user => { setCurrentUser(user); window.__pulseUser = user; logActivity("login","Logged in", user); }} />;
   }
+  // Keep window ref in sync
+  window.__pulseUser = currentUser;
 
   return (
     <div style={S.app}>
@@ -2206,8 +2273,49 @@ function MapTab({ customers, weekComp }) {
 
 // ── Rep To Do Tab ─────────────────────────────────────────────────────────────
 function RepTodoTab({ repName, actionPlan, onCustomerClick, color }) {
-  const [aiPlan, setAiPlan]     = useState(null);
+  const aiPlanKey = `ai_action_plan_${repName}`;
+  const [aiPlan, setAiPlanState] = useState(() => {
+    try { return localStorage.getItem(aiPlanKey) || null; } catch { return null; }
+  });
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiPlanDate, setAiPlanDate] = useState(() => {
+    try { return localStorage.getItem(aiPlanKey + "_date") || null; } catch { return null; }
+  });
+
+  function setAiPlan(text) {
+    setAiPlanState(text);
+    try {
+      if (text) {
+        localStorage.setItem(aiPlanKey, text);
+        const now = new Date().toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+        localStorage.setItem(aiPlanKey + "_date", now);
+        setAiPlanDate(now);
+        // Sync to Supabase
+        const userId = window.__pulseUser?.id;
+        if (userId) syncAIPlanUp(userId, text, now);
+      } else {
+        localStorage.removeItem(aiPlanKey);
+        localStorage.removeItem(aiPlanKey + "_date");
+        setAiPlanDate(null);
+      }
+    } catch {}
+  }
+
+  // Load AI plan from Supabase on mount
+  useEffect(() => {
+    const userId = window.__pulseUser?.id;
+    if (!userId) return;
+    syncAIPlanDown(userId).then(row => {
+      if (row?.plan && !aiPlan) {
+        setAiPlanState(row.plan);
+        setAiPlanDate(row.generated_at);
+        try {
+          localStorage.setItem(aiPlanKey, row.plan);
+          localStorage.setItem(aiPlanKey + "_date", row.generated_at || "");
+        } catch {}
+      }
+    });
+  }, []);
 
   async function generateAIPlan() {
     setAiLoading(true);
@@ -2296,7 +2404,7 @@ Be direct, specific, and use the actual account names. Format with clear numbere
     setAiLoading(false);
   }
 
-  // Load all todos + notes for this rep's customers from localStorage
+  // Load all todos + notes from localStorage (fast) then refresh from Supabase
   const [data, setData] = useState(() => {
     const result = [];
     try {
@@ -2305,13 +2413,40 @@ Be direct, specific, and use the actual account names. Format with clear numbere
         const notesRaw = localStorage.getItem(`notes_${ap.custNum}`);
         const todos    = todosRaw ? JSON.parse(todosRaw) : [];
         const notes    = notesRaw || "";
-        if (todos.length > 0 || notes) {
-          result.push({ ap, todos, notes });
-        }
+        if (todos.length > 0 || notes) result.push({ ap, todos, notes });
       });
     } catch {}
     return result;
   });
+  const [sbLoaded, setSbLoaded] = useState(false);
+
+  // Sync from Supabase on mount
+  useEffect(() => {
+    const userId = window.__pulseUser?.id;
+    if (!userId) return;
+    syncAllTodosDown(userId).then(rows => {
+      if (!rows) return;
+      // Group by custNum
+      const byCust = {};
+      rows.forEach(r => {
+        if (!byCust[r.cust_num]) byCust[r.cust_num] = [];
+        byCust[r.cust_num].push({ id:r.id, text:r.text, done:r.done, date:r.created_date, by:r.created_by });
+      });
+      // Update localStorage and state
+      Object.entries(byCust).forEach(([cnum, todos]) => {
+        try { localStorage.setItem(`todos_${cnum}`, JSON.stringify(todos)); } catch {}
+      });
+      // Rebuild data
+      const result = [];
+      actionPlan.forEach(ap => {
+        const todos    = byCust[String(ap.custNum)] || JSON.parse(localStorage.getItem(`todos_${ap.custNum}`) || "[]");
+        const notes    = localStorage.getItem(`notes_${ap.custNum}`) || "";
+        if (todos.length > 0 || notes) result.push({ ap, todos, notes });
+      });
+      setData(result);
+      setSbLoaded(true);
+    });
+  }, []);
 
   const [filter, setFilter] = useState("open"); // open | all | notes
   const [refreshKey, setRefreshKey] = useState(0);
@@ -2363,6 +2498,7 @@ Be direct, specific, and use the actual account names. Format with clear numbere
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: aiPlan||aiLoading?"0.75rem":"0" }}>
           <div>
             <div style={{ fontSize:"0.78rem", fontWeight:700, color:color }}>◈ AI Action Plan — {repName}</div>
+            {aiPlanDate && <div style={{ fontSize:"0.65rem", color:MUTED, marginTop:1 }}>Last generated: {aiPlanDate}</div>}
             {!aiPlan && !aiLoading && <div style={{ fontSize:"0.68rem", color:MUTED, marginTop:2 }}>Personalized plan based on your accounts, trends & AD programs</div>}
           </div>
           <button onClick={generateAIPlan} disabled={aiLoading}
@@ -4798,7 +4934,23 @@ function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecor
   function saveNotes(val) {
     setNotes(val);
     try { localStorage.setItem(notesKey, val); } catch {}
+    // Sync to Supabase (debounced — fire after 1.5s pause)
+    if (window._notesSyncTimer) clearTimeout(window._notesSyncTimer);
+    window._notesSyncTimer = setTimeout(() => {
+      if (currentUser) syncNotesUp(currentUser.id, ap.custNum, val);
+    }, 1500);
   }
+
+  // Load notes from Supabase on mount (overrides localStorage if newer)
+  useEffect(() => {
+    if (!currentUser) return;
+    syncNotesDown(currentUser.id, ap.custNum).then(row => {
+      if (row?.notes && row.notes !== notes) {
+        setNotes(row.notes);
+        try { localStorage.setItem(notesKey, row.notes); } catch {}
+      }
+    });
+  }, [ap.custNum]);
 
   // To-Do items for this customer
   const todosKey = `todos_${ap.custNum}`;
@@ -4809,18 +4961,22 @@ function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecor
   function saveTodos(updated) {
     setTodos(updated);
     try { localStorage.setItem(todosKey, JSON.stringify(updated)); } catch {}
-    // Also update rep-level todo index
-    try {
-      const repKey = `rep_todo_index_${ap.salesman}`;
-      let idx = JSON.parse(localStorage.getItem(repKey) || "{}");
-      if (updated.filter(t=>!t.done).length > 0) {
-        idx[String(ap.custNum)] = { custName: ap.customer, city: ap.city, count: updated.filter(t=>!t.done).length };
-      } else {
-        delete idx[String(ap.custNum)];
-      }
-      localStorage.setItem(repKey, JSON.stringify(idx));
-    } catch {}
+    // Sync to Supabase
+    if (currentUser) {
+      syncTodosUp(currentUser.id, ap.custNum, ap.customer, ap.city, ap.salesman, updated);
+    }
   }
+
+  // Load todos from Supabase on mount
+  useEffect(() => {
+    if (!currentUser) return;
+    syncTodosDown(currentUser.id, ap.custNum).then(rows => {
+      if (rows && rows.length > 0) {
+        setTodos(rows);
+        try { localStorage.setItem(todosKey, JSON.stringify(rows)); } catch {}
+      }
+    });
+  }, [ap.custNum]);
   function addTodo() {
     if (!newTodoText.trim()) return;
     const updated = [{ id: Date.now(), text: newTodoText.trim(), done: false,
