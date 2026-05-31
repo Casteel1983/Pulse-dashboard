@@ -2582,13 +2582,23 @@ Be direct, specific, and use the actual account names. Format with clear numbere
               {openTodos.length > 0 && (
                 <div style={{ display:"flex", flexDirection:"column", gap:4, marginBottom: notes||doneTodos.length>0?"0.6rem":0 }}>
                   {openTodos.map(t => (
-                    <div key={t.id} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"0.4rem 0.6rem", background:"#FFFBEB", borderRadius:6, border:"1px solid #FDE68A" }}>
-                      <input type="checkbox" checked={false} onChange={()=>toggleTodo(ap.custNum,t.id)} style={{ marginTop:3, cursor:"pointer", accentColor:AMBER, flexShrink:0 }} />
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:"0.75rem", color:TEXT, fontWeight:500 }}>{t.text}</div>
-                        <div style={{ fontSize:"0.62rem", color:MUTED }}>{t.by} · {t.date}</div>
-                      </div>
-                    </div>
+                    <TodoItem key={t.id} todo={t}
+                      onToggle={()=>toggleTodo(ap.custNum, t.id)}
+                      onDelete={()=>{
+                        const key = `todos_${ap.custNum}`;
+                        const updated = JSON.parse(localStorage.getItem(key)||"[]").filter(x=>x.id!==t.id);
+                        localStorage.setItem(key, JSON.stringify(updated));
+                        if (window.__pulseUser) syncTodosUp(window.__pulseUser.id, ap.custNum, ap.customer, ap.city, ap.salesman, updated);
+                        refresh();
+                      }}
+                      onEdit={(newText)=>{
+                        const key = `todos_${ap.custNum}`;
+                        const updated = JSON.parse(localStorage.getItem(key)||"[]").map(x=>x.id===t.id?{...x,text:newText}:x);
+                        localStorage.setItem(key, JSON.stringify(updated));
+                        if (window.__pulseUser) syncTodosUp(window.__pulseUser.id, ap.custNum, ap.customer, ap.city, ap.salesman, updated);
+                        refresh();
+                      }}
+                    />
                   ))}
                 </div>
               )}
@@ -4918,6 +4928,76 @@ function ADProgramTab({ adProgram, custName }) {
 }
 
 // ── Customer Detail Tab ───────────────────────────────────────────────────────
+
+// ── Todo Item ─────────────────────────────────────────────────────────────────
+function TodoItem({ todo, onToggle, onDelete, onEdit }) {
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(todo.text);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) inputRef.current.focus();
+  }, [editing]);
+
+  function commitEdit() {
+    if (editText.trim() && editText.trim() !== todo.text) {
+      onEdit(editText.trim());
+    } else {
+      setEditText(todo.text);
+    }
+    setEditing(false);
+  }
+
+  return (
+    <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"0.45rem 0.6rem",
+      background: todo.done ? "#F4F7FB" : "#FFFBEB",
+      borderRadius:6,
+      border: `1px solid ${todo.done ? BORDER : "#FDE68A"}`,
+      opacity: todo.done ? 0.7 : 1,
+      transition:"all 0.2s" }}>
+      {/* Checkbox */}
+      <input type="checkbox" checked={todo.done} onChange={onToggle}
+        style={{ marginTop:3, cursor:"pointer", accentColor:AMBER, flexShrink:0 }} />
+      {/* Text / edit */}
+      <div style={{ flex:1, minWidth:0 }}>
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={editText}
+            onChange={e => setEditText(e.target.value)}
+            onKeyDown={e => { if(e.key==="Enter") commitEdit(); if(e.key==="Escape") { setEditText(todo.text); setEditing(false); } }}
+            onBlur={commitEdit}
+            style={{ width:"100%", fontSize:"0.75rem", color:TEXT, background:"#FFFFFF",
+              border:`1px solid ${AMBER}`, borderRadius:4, padding:"2px 6px", outline:"none", boxSizing:"border-box" }}
+          />
+        ) : (
+          <div
+            onDoubleClick={() => { if(!todo.done) { setEditing(true); } }}
+            style={{ fontSize:"0.75rem", color:TEXT, textDecoration:todo.done?"line-through":"none",
+              cursor:todo.done?"default":"text", wordBreak:"break-word" }}
+            title={todo.done ? "" : "Double-click to edit"}>
+            {todo.text}
+          </div>
+        )}
+        <div style={{ fontSize:"0.62rem", color:MUTED, marginTop:2 }}>{todo.by} · {todo.date}</div>
+      </div>
+      {/* Actions */}
+      <div style={{ display:"flex", gap:4, flexShrink:0, alignItems:"flex-start", marginTop:1 }}>
+        {!todo.done && !editing && (
+          <button onClick={()=>setEditing(true)}
+            style={{ background:"none", border:"none", color:MUTED, cursor:"pointer", fontSize:"0.7rem", padding:"0 2px" }}
+            title="Edit">✏</button>
+        )}
+        <button onClick={onDelete}
+          style={{ background:"none", border:"none",
+            color: todo.done ? RED : MUTED,
+            cursor:"pointer", fontSize:"0.8rem", padding:"0 2px", fontWeight:todo.done?700:400 }}
+          title="Delete">×</button>
+      </div>
+    </div>
+  );
+}
+
 function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecord, onMarkInactive, onMarkActive, currentUser }) {
   const [subTab, setSubTab] = useState("overview");
   const [aiLoading, setAiLoading] = useState(false);
@@ -5411,19 +5491,23 @@ Generate a NEXT VISIT PLAN for this account. Return JSON only: { "callPlan": "2-
             </div>
             {/* List */}
             {todos.length === 0 && <div style={{ fontSize:"0.72rem", color:MUTED, textAlign:"center", padding:"0.5rem" }}>No to-dos yet</div>}
+            {todos.filter(t=>t.done).length > 0 && (
+              <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:4 }}>
+                <button onClick={()=>saveTodos(todos.filter(t=>!t.done))}
+                  style={{ fontSize:"0.65rem", color:MUTED, background:"#FEF2F2", border:`1px solid #FECACA`, borderRadius:4, padding:"2px 8px", cursor:"pointer" }}>
+                  × Clear {todos.filter(t=>t.done).length} completed
+                </button>
+              </div>
+            )}
             <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
               {todos.map(t => (
-                <div key={t.id} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"0.45rem 0.6rem",
-                  background: t.done?"#F4F7FB":"#FFFBEB", borderRadius:6, border:`1px solid ${t.done?BORDER:"#FDE68A"}`,
-                  opacity: t.done?0.6:1 }}>
-                  <input type="checkbox" checked={t.done} onChange={()=>toggleTodo(t.id)}
-                    style={{ marginTop:3, cursor:"pointer", accentColor:AMBER, flexShrink:0 }} />
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontSize:"0.75rem", color:TEXT, textDecoration:t.done?"line-through":"none" }}>{t.text}</div>
-                    <div style={{ fontSize:"0.62rem", color:MUTED, marginTop:2 }}>{t.by} · {t.date}</div>
-                  </div>
-                  <button onClick={()=>deleteTodo(t.id)} style={{ background:"none", border:"none", color:MUTED, cursor:"pointer", fontSize:"0.75rem", padding:0, flexShrink:0 }}>×</button>
-                </div>
+                <TodoItem key={t.id} todo={t}
+                  onToggle={()=>toggleTodo(t.id)}
+                  onDelete={()=>deleteTodo(t.id)}
+                  onEdit={(newText)=>{
+                    saveTodos(todos.map(x => x.id===t.id ? {...x, text:newText} : x));
+                  }}
+                />
               ))}
             </div>
           </div>
