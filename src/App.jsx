@@ -3003,6 +3003,63 @@ function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmi
   );
 }
 
+
+// ── AI Action Item (must be a proper component — hooks can't live in .map()) ──
+function AIActionItem({ action: a, repName, actionPlan, color }) {
+  const [added, setAdded] = useState(false);
+  const pColor = a.priority==="HIGH" ? RED : a.priority==="MEDIUM" ? AMBER : GREEN;
+  const catIcon = c => c==="Visit"?"🚗":c==="AD Program"?"🏆":c==="At Risk"?"⚠️":"📞";
+
+  return (
+    <div style={{ display:"flex", gap:10, padding:"0.55rem 0.75rem",
+      background: added?"#F0FDF4":"#FFFFFF",
+      border:`1px solid ${added?"#BBF7D0":pColor+"44"}`,
+      borderLeft:`4px solid ${added?GREEN:pColor}`,
+      borderRadius:6, alignItems:"flex-start", transition:"all 0.2s" }}>
+      <div style={{ flex:1 }}>
+        <div style={{ display:"flex", gap:6, alignItems:"center", marginBottom:3, flexWrap:"wrap" }}>
+          <span style={{ fontSize:"0.68rem" }}>{catIcon(a.category)}</span>
+          <span style={{ fontSize:"0.65rem", fontWeight:700, color:pColor, background:pColor+"18", borderRadius:8, padding:"1px 6px" }}>{a.priority}</span>
+          <span style={{ fontSize:"0.7rem", fontWeight:700, color:AMBER }}>↗ {a.custName}</span>
+          <span style={{ fontSize:"0.65rem", color:MUTED, background:"#F4F7FB", borderRadius:8, padding:"1px 6px" }}>{a.category}</span>
+        </div>
+        <div style={{ fontSize:"0.75rem", color:TEXT, lineHeight:1.6 }}>{a.action}</div>
+      </div>
+      <button
+        onClick={() => {
+          if (added || !a.custNum) return;
+          const key = `todos_${a.custNum}`;
+          const existing = JSON.parse(localStorage.getItem(key)||"[]");
+          const newTodo = {
+            id: Date.now(),
+            text: `[AI] ${a.action}`,
+            done: false,
+            date: new Date().toISOString().slice(0,10),
+            by: window.__pulseUser?.name || repName,
+          };
+          const updated = [newTodo, ...existing];
+          localStorage.setItem(key, JSON.stringify(updated));
+          const userId = window.__pulseUser?.id;
+          if (userId) {
+            const apRow = actionPlan.find(ap => String(ap.custNum)===String(a.custNum));
+            syncTodosUp(userId, a.custNum, a.custName, apRow?.city||"", apRow?.salesman||repName, updated);
+          }
+          setAdded(true);
+        }}
+        disabled={added || !a.custNum}
+        style={{ fontSize:"0.65rem", fontWeight:700, flexShrink:0, marginTop:2,
+          color: added?"#059669":"#FFFFFF",
+          background: added?"transparent":color,
+          border:`1px solid ${added?GREEN:color}`,
+          borderRadius:6, padding:"0.25rem 0.65rem",
+          cursor: added||!a.custNum?"default":"pointer",
+          transition:"all 0.2s" }}>
+        {added ? "✓ Added" : "+ Add"}
+      </button>
+    </div>
+  );
+}
+
 // ── Rep To Do Tab ─────────────────────────────────────────────────────────────
 function RepTodoTab({ repName, actionPlan, onCustomerClick, color, leads, currentUser }) {
   const aiPlanKey = `ai_action_plan_${repName}`;
@@ -3290,59 +3347,9 @@ Include 5-8 actions. Use real customer names and numbers from the lookup. Be spe
                     Action Items — click to add to customer to-do
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                    {parsed.actions.map((a,i) => {
-                      const [added, setAdded] = React.useState(false);
-                      const pColor = priorityColor(a.priority);
-                      return (
-                        <div key={i} style={{ display:"flex", gap:10, padding:"0.55rem 0.75rem",
-                          background: added?"#F0FDF4":"#FFFFFF",
-                          border:`1px solid ${added?"#BBF7D0":pColor+"44"}`,
-                          borderLeft:`4px solid ${added?GREEN:pColor}`,
-                          borderRadius:6, alignItems:"flex-start", transition:"all 0.2s" }}>
-                          <div style={{ flex:1 }}>
-                            <div style={{ display:"flex", gap:6, alignItems:"center", marginBottom:3, flexWrap:"wrap" }}>
-                              <span style={{ fontSize:"0.68rem" }}>{catIcon(a.category)}</span>
-                              <span style={{ fontSize:"0.65rem", fontWeight:700, color:pColor, background:pColor+"18", borderRadius:8, padding:"1px 6px" }}>{a.priority}</span>
-                              <span style={{ fontSize:"0.7rem", fontWeight:700, color:AMBER }}>↗ {a.custName}</span>
-                              <span style={{ fontSize:"0.65rem", color:MUTED, background:"#F4F7FB", borderRadius:8, padding:"1px 6px" }}>{a.category}</span>
-                            </div>
-                            <div style={{ fontSize:"0.75rem", color:TEXT, lineHeight:1.6 }}>{a.action}</div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              if (added || !a.custNum) return;
-                              // Add to that customer's todos in localStorage + Supabase
-                              const key = `todos_${a.custNum}`;
-                              const existing = JSON.parse(localStorage.getItem(key)||"[]");
-                              const newTodo = {
-                                id: Date.now() + i,
-                                text: `[AI] ${a.action}`,
-                                done: false,
-                                date: new Date().toISOString().slice(0,10),
-                                by: window.__pulseUser?.name || repName,
-                              };
-                              const updated = [newTodo, ...existing];
-                              localStorage.setItem(key, JSON.stringify(updated));
-                              // Sync to Supabase
-                              const userId = window.__pulseUser?.id;
-                              if (userId) {
-                                const apRow = actionPlan.find(ap => String(ap.custNum)===String(a.custNum));
-                                syncTodosUp(userId, a.custNum, a.custName, apRow?.city||"", apRow?.salesman||repName, updated);
-                              }
-                              setAdded(true);
-                            }}
-                            disabled={added || !a.custNum}
-                            style={{ fontSize:"0.65rem", fontWeight:700, flexShrink:0, marginTop:2,
-                              color: added?"#059669":"#FFFFFF",
-                              background: added?"transparent":color,
-                              border:`1px solid ${added?GREEN:color}`,
-                              borderRadius:6, padding:"0.25rem 0.65rem", cursor: added||!a.custNum?"default":"pointer",
-                              transition:"all 0.2s" }}>
-                            {added ? "✓ Added" : "+ Add"}
-                          </button>
-                        </div>
-                      );
-                    })}
+                    {parsed.actions.map((a,i) => (
+                      <AIActionItem key={i} action={a} repName={repName} actionPlan={actionPlan} color={color} />
+                    ))}
                   </div>
                 </div>
               )}
