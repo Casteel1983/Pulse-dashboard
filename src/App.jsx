@@ -262,6 +262,21 @@ async function syncAllTodosDown(userId) {
   return rows || null;
 }
 
+// Leads sync
+async function syncLeadUp(lead) {
+  await sbFetch("rep_leads", "POST", { ...lead, updated_at: new Date().toISOString() });
+}
+async function syncLeadsDown(userId) {
+  const rows = await sbFetch(`rep_leads?or=(assigned_to.eq.${encodeURIComponent(userId)},created_by.eq.${encodeURIComponent(userId)})&order=created_at.desc`);
+  return rows || [];
+}
+async function updateLeadUp(leadId, updates) {
+  await sbFetch(`rep_leads?id=eq.${leadId}`, "PATCH", { ...updates, updated_at: new Date().toISOString() });
+}
+async function deleteLeadUp(leadId) {
+  await sbFetch(`rep_leads?id=eq.${leadId}`, "DELETE");
+}
+
 // AI plan sync
 async function syncAIPlanUp(userId, plan, generatedAt) {
   await sbFetch("rep_ai_plans", "POST", { user_id:userId, plan, generated_at:generatedAt, updated_at:new Date().toISOString() });
@@ -627,7 +642,7 @@ function LoginScreen({ onLogin }) {
 }
 
 // ── Admin Tab ─────────────────────────────────────────────────────────────────
-function AdminTab({ currentUser }) {
+function AdminTab({ currentUser, leads, onAddLead, onDeleteLead, convertLead }) {
   const [log, setLog] = useState([]);
   const [aiSuggestions, setAiSuggestions] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -764,6 +779,16 @@ Keep it concise and actionable, written for a sales manager.` }]
         </div>
       )}
 
+      {/* Leads Management */}
+      <div style={{ ...S.card, marginBottom:"1rem" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.75rem" }}>
+          <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#059669", textTransform:"uppercase", letterSpacing:"0.1em" }}>
+            🎯 Leads <span style={{ color:MUTED, fontWeight:400 }}>({(leads||[]).filter(l=>l.status==="open").length} open)</span>
+          </div>
+        </div>
+        <LeadsTab leads={leads||[]} repName="Admin" onAddLead={onAddLead} onDeleteLead={onDeleteLead} currentUser={currentUser} isAdmin={true} allReps={["Tiffany","Larry","Austin"]} convertLead={convertLead} />
+      </div>
+
       {/* Suggestions & Bug Reports */}
       {suggestions.length > 0 && (
         <div style={{ ...S.card, marginBottom:"1rem" }}>
@@ -840,6 +865,58 @@ export default function App() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [custTabs, setCustTabs] = useState([]); // open customer detail tabs, max 10
   const [inactiveCustomers, setInactiveCustomers] = useState({}); // custNum → {reason, date, by}
+  const [leads, setLeads] = useState([]); // array of lead objects
+
+  // Load leads from storage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("pulse_leads");
+      if (saved) setLeads(JSON.parse(saved));
+    } catch {}
+    // Sync from Supabase
+    if (currentUser) {
+      syncLeadsDown(currentUser.id).then(rows => {
+        if (rows.length > 0) {
+          setLeads(rows);
+          localStorage.setItem("pulse_leads", JSON.stringify(rows));
+        }
+      });
+    }
+  }, [currentUser]);
+
+  function saveLeads(updated) {
+    setLeads(updated);
+    localStorage.setItem("pulse_leads", JSON.stringify(updated));
+  }
+
+  async function addLead(lead) {
+    const newLead = {
+      id: `lead_${Date.now()}`,
+      ...lead,
+      status: "open",
+      created_by: currentUser?.id || "",
+      created_by_name: currentUser?.name || "",
+      created_at: new Date().toISOString(),
+    };
+    const updated = [newLead, ...leads];
+    saveLeads(updated);
+    logActivity("new_lead", `${lead.name} — assigned to ${lead.assigned_to_name}`);
+    await syncLeadUp(newLead);
+    return newLead;
+  }
+
+  async function convertLead(leadId) {
+    const updated = leads.map(l => l.id===leadId ? {...l, status:"converted"} : l);
+    saveLeads(updated);
+    await updateLeadUp(leadId, { status: "converted" });
+    logActivity("convert_lead", leads.find(l=>l.id===leadId)?.name || leadId);
+  }
+
+  async function deleteLead(leadId) {
+    const updated = leads.filter(l => l.id!==leadId);
+    saveLeads(updated);
+    await deleteLeadUp(leadId);
+  }
 
   // Load inactive customers from storage on mount
   useEffect(() => {
@@ -1178,7 +1255,7 @@ export default function App() {
         {tab === "setup"    && <FileSetup fileData={fileData} onUpload={handleUpload} onClear={clearAll} />}
         {tab === "overview" && <OverviewTab weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} />}
         {["tiffany","larry","austin","house"].includes(tab) && (
-          <RepTab repName={tab.charAt(0).toUpperCase()+tab.slice(1)} weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} inactiveCustomers={inactiveCustomers} />
+          <RepTab repName={tab.charAt(0).toUpperCase()+tab.slice(1)} weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} inactiveCustomers={inactiveCustomers} leads={leads} onAddLead={addLead} onDeleteLead={deleteLead} currentUser={currentUser} />
         )}
         {tab === "ai" && <AITab weekComp={weekComp} initialPrompt={aiPrompt} onClearPrompt={() => setAiPrompt("")} />}
         {tab === "map" && <MapTab customers={fileData.customers || SEED_CUSTOMERS} weekComp={weekComp} />}
@@ -1410,7 +1487,7 @@ function DeptView({ depts }) {
 }
 
 // ── Action Plan View ──────────────────────────────────────────────────────────
-function ActionPlanView({ actionPlan, onCustomerClick, customers, inactiveCustomers }) {
+function ActionPlanView({ actionPlan, onCustomerClick, customers, inactiveCustomers, leads, currentUser, repName }) {
   const [repFilter, setRepFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("change");
@@ -1592,7 +1669,7 @@ function TrendView({ weeks }) {
 }
 
 // ── Rep Tab ───────────────────────────────────────────────────────────────────
-function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inactiveCustomers }) {
+function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inactiveCustomers, leads, onAddLead, onDeleteLead, currentUser }) {
   const color = REP_COLORS[repName] || AMBER;
   const [cityFilter, setCityFilter] = useState("All");
   const [showShared, setShowShared] = useState(true);
@@ -1600,6 +1677,7 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
   // Austin gets shared accounts from other reps where Industrial, OTR, or Farm is the top dept
   const AUSTIN_TARGET_DEPTS = ["INDUSTRIAL TIRES", "OFF THE ROAD TIRES", "FARM TIRES"];
   const isAustin = repName === "Austin";
+  const repLeads = (leads||[]).filter(l => l.assigned_to === currentUser?.id || l.assigned_to_name === repName || l.created_by === currentUser?.id);
 
 
   const ownAccounts = (weekComp?.actionPlan || []).filter(a => a.salesman.toLowerCase() === repName.toLowerCase());
@@ -1716,20 +1794,27 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
       {/* Rep sub-nav */}
       <div style={{ ...S.subNav, marginBottom:"0.75rem" }}>
         <button style={S.subBtn(repSubTab==="accounts", color)} onClick={()=>setRepSubTab("accounts")}>📋 Accounts</button>
-        <button style={S.subBtn(repSubTab==="ad",       "#059669")} onClick={()=>setRepSubTab("ad")}>🏆 AD Programs</button>
+        <button style={S.subBtn(repSubTab==="leads",    "#059669")} onClick={()=>setRepSubTab("leads")}>
+          🎯 Leads
+          {repLeads.filter(l=>l.status==="open").length > 0 && <span style={{ marginLeft:5, background:RED, color:"#fff", borderRadius:8, padding:"0px 6px", fontSize:"0.6rem", fontWeight:700 }}>{repLeads.filter(l=>l.status==="open").length}</span>}
+        </button>
+        <button style={S.subBtn(repSubTab==="ad",       "#7C3AED")} onClick={()=>setRepSubTab("ad")}>🏆 AD Programs</button>
         <button style={S.subBtn(repSubTab==="todo",     AMBER)}    onClick={()=>setRepSubTab("todo")}>📋 To Do</button>
         {isAustin && <button style={S.subBtn(repSubTab==="statesboro", "#0891B2")} onClick={()=>setRepSubTab("statesboro")}>📍 Statesboro</button>}
         <button style={S.subBtn(repSubTab==="specials", "#D97706")} onClick={()=>setRepSubTab("specials")}>🏷 Specials</button>
       </div>
 
       {repSubTab === "accounts" && (
-        <ActionPlanView actionPlan={filtered} onCustomerClick={onCustomerClick} customers={customers} inactiveCustomers={inactiveCustomers} />
+        <ActionPlanView actionPlan={filtered} onCustomerClick={onCustomerClick} customers={customers} inactiveCustomers={inactiveCustomers} leads={leads} currentUser={currentUser} repName={repName} />
       )}
       {repSubTab === "ad" && (
         <RepADTab actionPlan={actionPlan} repName={repName} color={color} onCustomerClick={onCustomerClick} />
       )}
       {repSubTab === "todo" && (
-        <RepTodoTab repName={repName} actionPlan={actionPlan} onCustomerClick={onCustomerClick} color={color} />
+        <RepTodoTab repName={repName} actionPlan={actionPlan} onCustomerClick={onCustomerClick} color={color} leads={leads} currentUser={currentUser} />
+      )}
+      {repSubTab === "leads" && (
+        <LeadsTab leads={repLeads} repName={repName} onAddLead={onAddLead} onDeleteLead={onDeleteLead} currentUser={currentUser} isAdmin={false} allReps={["Tiffany","Larry","Austin"]} />
       )}
       {repSubTab === "statesboro" && isAustin && (
         <StatesboroTab />
@@ -2271,8 +2356,193 @@ function MapTab({ customers, weekComp }) {
 
 
 
+
+// ── Leads Tab ─────────────────────────────────────────────────────────────────
+function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmin, allReps, convertLead }) {
+  const [showForm, setShowForm]   = useState(false);
+  const [filter, setFilter]       = useState("open");
+  const [form, setForm]           = useState({
+    name:"", city:"", phone:"", businessType:"", notes:"",
+    assigned_to: isAdmin ? "" : currentUser?.id || "",
+    assigned_to_name: isAdmin ? "" : repName,
+  });
+
+  const openLeads      = leads.filter(l => l.status==="open");
+  const convertedLeads = leads.filter(l => l.status==="converted");
+  const displayed      = filter==="open" ? openLeads : filter==="converted" ? convertedLeads : leads;
+
+  function resetForm() {
+    setForm({ name:"", city:"", phone:"", businessType:"", notes:"",
+      assigned_to: isAdmin?"":currentUser?.id||"",
+      assigned_to_name: isAdmin?"":repName });
+    setShowForm(false);
+  }
+
+  async function handleSubmit() {
+    if (!form.name.trim()) return;
+    const assigned_to_name = isAdmin ? form.assigned_to_name : repName;
+    const assigned_to      = isAdmin ? form.assigned_to      : currentUser?.id || "";
+    await onAddLead({ ...form, assigned_to, assigned_to_name });
+    resetForm();
+  }
+
+  const priorityColors = { High:RED, Medium:AMBER, Normal:GREEN };
+
+  return (
+    <div>
+      {/* KPI strip */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"0.6rem", marginBottom:"1rem" }}>
+        {[
+          { label:"Open Leads",     val:openLeads.length,      color:openLeads.length>0?RED:MUTED },
+          { label:"Converted",      val:convertedLeads.length, color:GREEN },
+          { label:"Total",          val:leads.length,          color:MUTED },
+        ].map(k=>(
+          <div key={k.label} style={{ background:"#F4F7FB", borderRadius:6, padding:"0.65rem 0.8rem", borderTop:`3px solid ${k.color}` }}>
+            <div style={{ fontSize:"0.95rem", fontWeight:700, color:k.color }}>{k.val}</div>
+            <div style={{ fontSize:"0.62rem", color:MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginTop:2 }}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Actions row */}
+      <div style={{ display:"flex", gap:6, marginBottom:"0.75rem", alignItems:"center" }}>
+        {[["open","Open"],["converted","Converted"],["all","All"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setFilter(v)}
+            style={{ fontSize:"0.7rem", fontWeight:filter===v?700:400,
+              color:filter===v?"#fff":MUTED,
+              background:filter===v?"#059669":"#F4F7FB",
+              border:`1px solid ${filter===v?"#059669":BORDER}`,
+              borderRadius:6, padding:"0.3rem 0.75rem", cursor:"pointer" }}>{l}</button>
+        ))}
+        <button onClick={()=>setShowForm(!showForm)}
+          style={{ ...S.btn("#059669"), fontSize:"0.72rem", marginLeft:"auto", fontWeight:700 }}>
+          {showForm ? "× Cancel" : "+ New Lead"}
+        </button>
+      </div>
+
+      {/* New Lead form */}
+      {showForm && (
+        <div style={{ ...S.card, border:`2px solid #059669`, marginBottom:"1rem" }}>
+          <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#059669", marginBottom:"0.75rem" }}>🎯 New Lead</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.6rem", marginBottom:"0.6rem" }}>
+            {[
+              { label:"Business Name *", key:"name",         placeholder:"e.g. Tifton Tire Co." },
+              { label:"City",            key:"city",          placeholder:"e.g. Tifton" },
+              { label:"Phone",           key:"phone",         placeholder:"229-555-0000" },
+              { label:"Business Type",   key:"businessType",  placeholder:"e.g. Tire Shop, Auto Dealer..." },
+            ].map(f=>(
+              <div key={f.key}>
+                <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>{f.label}</div>
+                <input value={form[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))}
+                  placeholder={f.placeholder}
+                  style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
+                    padding:"0.4rem 0.65rem", borderRadius:6, fontSize:"0.75rem", outline:"none", boxSizing:"border-box" }}
+                  onFocus={e=>e.target.style.borderColor="#059669"}
+                  onBlur={e=>e.target.style.borderColor=BORDER}
+                />
+              </div>
+            ))}
+          </div>
+          {isAdmin && (
+            <div style={{ marginBottom:"0.6rem" }}>
+              <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Assign to Rep *</div>
+              <select value={form.assigned_to_name}
+                onChange={e=>setForm(p=>({...p, assigned_to_name:e.target.value, assigned_to:e.target.value.toLowerCase()}))}
+                style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
+                  padding:"0.4rem 0.65rem", borderRadius:6, fontSize:"0.75rem", outline:"none" }}>
+                <option value="">— Select Rep —</option>
+                {(allReps||[]).map(r=><option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+          )}
+          <div style={{ marginBottom:"0.75rem" }}>
+            <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Notes</div>
+            <textarea value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))}
+              placeholder="What do you know about this prospect? How did you find them?"
+              rows={3}
+              style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
+                padding:"0.4rem 0.65rem", borderRadius:6, fontSize:"0.75rem", resize:"vertical", outline:"none", boxSizing:"border-box" }}
+              onFocus={e=>e.target.style.borderColor="#059669"}
+              onBlur={e=>e.target.style.borderColor=BORDER}
+            />
+          </div>
+          <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+            <button onClick={resetForm} style={{ ...S.btn(MUTED) }}>Cancel</button>
+            <button onClick={handleSubmit} disabled={!form.name.trim()||(isAdmin&&!form.assigned_to_name)}
+              style={{ ...S.btn("#059669"), background:"#059669", color:"#fff",
+                opacity:!form.name.trim()||(isAdmin&&!form.assigned_to_name)?0.5:1 }}>
+              Create Lead
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Lead list */}
+      {displayed.length === 0 && (
+        <div style={{ ...S.card, textAlign:"center", padding:"2rem", color:MUTED }}>
+          <div style={{ fontSize:"1.5rem", marginBottom:8 }}>🎯</div>
+          <div style={{ fontWeight:600, marginBottom:4 }}>
+            {filter==="open" ? "No open leads" : filter==="converted" ? "No converted leads yet" : "No leads yet"}
+          </div>
+          <div style={{ fontSize:"0.72rem" }}>Click + New Lead to add a prospect</div>
+        </div>
+      )}
+
+      <div style={{ display:"flex", flexDirection:"column", gap:"0.65rem" }}>
+        {displayed.map(lead => (
+          <div key={lead.id} style={{ ...S.card, padding:"0.85rem 1rem",
+            borderLeft:`4px solid ${lead.status==="converted"?GREEN:RED}`,
+            opacity: lead.status==="converted"?0.75:1 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:8 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
+                  <span style={{ fontSize:"0.85rem", fontWeight:700, color:TEXT }}>{lead.name}</span>
+                  <span style={{ fontSize:"0.62rem", fontWeight:800, color:"#fff",
+                    background: lead.status==="converted"?GREEN:RED,
+                    borderRadius:8, padding:"1px 8px", letterSpacing:"0.05em" }}>
+                    {lead.status==="converted" ? "✓ CONVERTED" : "LEAD"}
+                  </span>
+                  {lead.businessType && <span style={{ fontSize:"0.65rem", color:MUTED, background:"#F4F7FB", borderRadius:8, padding:"1px 7px" }}>{lead.businessType}</span>}
+                </div>
+                <div style={{ fontSize:"0.68rem", color:MUTED, display:"flex", gap:12, flexWrap:"wrap" }}>
+                  {lead.city && <span>📍 {lead.city}</span>}
+                  {lead.phone && <span>📞 {lead.phone}</span>}
+                  <span>👤 {lead.assigned_to_name || lead.created_by_name}</span>
+                  <span>📅 {new Date(lead.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
+                  {isAdmin && lead.created_by_name && <span style={{ color:"#7C3AED" }}>Created by {lead.created_by_name}</span>}
+                </div>
+                {lead.notes && (
+                  <div style={{ marginTop:6, fontSize:"0.73rem", color:TEXT, lineHeight:1.6,
+                    padding:"0.4rem 0.6rem", background:"#F8FAFF", borderRadius:4, borderLeft:`2px solid ${BORDER}` }}>
+                    {lead.notes}
+                  </div>
+                )}
+              </div>
+              <div style={{ display:"flex", gap:5, flexShrink:0, alignItems:"flex-start" }}>
+                {lead.status==="open" && convertLead && (
+                  <button onClick={()=>convertLead(lead.id)}
+                    style={{ fontSize:"0.68rem", fontWeight:700, color:"#fff", background:GREEN,
+                      border:"none", borderRadius:6, padding:"0.3rem 0.65rem", cursor:"pointer" }}
+                    title="Mark as converted customer">
+                    ✓ Convert
+                  </button>
+                )}
+                <button onClick={()=>{ if(window.confirm(`Delete lead: ${lead.name}?`)) onDeleteLead(lead.id); }}
+                  style={{ fontSize:"0.68rem", color:MUTED, background:"none",
+                    border:`1px solid ${BORDER}`, borderRadius:6, padding:"0.3rem 0.5rem", cursor:"pointer" }}>
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Rep To Do Tab ─────────────────────────────────────────────────────────────
-function RepTodoTab({ repName, actionPlan, onCustomerClick, color }) {
+function RepTodoTab({ repName, actionPlan, onCustomerClick, color, leads, currentUser }) {
   const aiPlanKey = `ai_action_plan_${repName}`;
   const [aiPlan, setAiPlanState] = useState(() => {
     try { return localStorage.getItem(aiPlanKey) || null; } catch { return null; }
@@ -2355,6 +2625,9 @@ function RepTodoTab({ repName, actionPlan, onCustomerClick, color }) {
         });
       });
 
+      // Build customer lookup for AI (name → custNum)
+      const custLookup = repAP.slice(0,30).map(a => `${a.customer}|${a.custNum}`).join(",");
+
       const prompt = `You are a sales manager at a tire and ag supply distributor. Generate a specific, actionable weekly action plan for sales rep ${repName}.
 
 REP OVERVIEW:
@@ -2375,13 +2648,25 @@ ${adEnrolled.length > 0 ? adEnrolled.join("\n") : "No program enrollments found"
 OPEN TO-DOS (${openTodos.length} total):
 ${openTodos.slice(0,10).join("\n") || "None"}
 
-Generate a focused, prioritized action plan for ${repName} with:
-1. Top 3 accounts to visit this week and WHY
-2. Top 2 accounts at risk that need immediate attention
-3. AD program priorities — which programs need pushes and with which accounts
-4. One coaching insight based on their overall performance pattern
+CUSTOMER LOOKUP (Name|CustNum):
+${custLookup}
 
-Be direct, specific, and use the actual account names. Format with clear numbered sections. No generic advice.`;
+Return ONLY valid JSON (no markdown, no backticks) in this exact format:
+{
+  "summary": "2-3 sentence overall assessment of ${repName}'s territory",
+  "coaching": "One specific coaching insight based on their performance pattern",
+  "actions": [
+    {
+      "custNum": "the customer number from the lookup above",
+      "custName": "exact customer name",
+      "priority": "HIGH|MEDIUM|LOW",
+      "category": "Visit|AD Program|At Risk|Follow Up",
+      "action": "Specific actionable instruction for this customer (1-2 sentences)"
+    }
+  ]
+}
+
+Include 5-8 actions. Use real customer names and numbers from the lookup. Be specific — reference actual products, programs, dollar amounts, or trends.`;
 
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -2397,7 +2682,15 @@ Be direct, specific, and use the actual account names. Format with clear numbere
       });
       if (!res.ok) throw new Error(`API ${res.status}`);
       const data = await res.json();
-      setAiPlan(data.content?.[0]?.text || "No response.");
+      const raw = data.content?.[0]?.text || "{}";
+      try {
+        const clean = raw.replace(/```json|```/g,"").trim();
+        const parsed = JSON.parse(clean);
+        setAiPlan(JSON.stringify(parsed)); // store as JSON string
+      } catch {
+        // Fallback: store raw text as legacy format
+        setAiPlan(JSON.stringify({ summary: raw, actions: [], coaching: "" }));
+      }
     } catch(e) {
       setAiPlan(`Error: ${e.message}`);
     }
@@ -2507,22 +2800,107 @@ Be direct, specific, and use the actual account names. Format with clear numbere
           </button>
         </div>
         {aiLoading && (
-          <div style={{ fontSize:"0.75rem", color:MUTED, textAlign:"center", padding:"0.5rem" }}>
-            Analyzing {repName}'s accounts, sales trends, and AD programs…
+          <div style={{ fontSize:"0.75rem", color:MUTED, textAlign:"center", padding:"0.75rem" }}>
+            ◈ Analyzing {repName}'s accounts, sales trends & AD programs…
           </div>
         )}
-        {aiPlan && !aiLoading && (
-          <div style={{ fontSize:"0.78rem", color:TEXT, lineHeight:1.85, whiteSpace:"pre-wrap", borderTop:`1px solid ${BORDER}`, paddingTop:"0.75rem" }}>
-            {aiPlan}
-          </div>
-        )}
+        {aiPlan && !aiLoading && (() => {
+          let parsed = null;
+          try { parsed = JSON.parse(aiPlan); } catch {}
+          if (!parsed) return <div style={{ fontSize:"0.78rem", color:TEXT, lineHeight:1.85, whiteSpace:"pre-wrap", paddingTop:"0.75rem" }}>{aiPlan}</div>;
+
+          const priorityColor = p => p==="HIGH"?RED:p==="MEDIUM"?AMBER:GREEN;
+          const catIcon = c => c==="Visit"?"🚗":c==="AD Program"?"🏆":c==="At Risk"?"⚠️":"📞";
+
+          return (
+            <div style={{ borderTop:`1px solid ${BORDER}`, paddingTop:"0.75rem" }}>
+              {/* Summary */}
+              {parsed.summary && (
+                <div style={{ fontSize:"0.78rem", color:TEXT, lineHeight:1.75, marginBottom:"1rem", padding:"0.6rem 0.75rem", background:"#F4F7FB", borderRadius:6 }}>
+                  {parsed.summary}
+                </div>
+              )}
+
+              {/* Action items */}
+              {parsed.actions?.length > 0 && (
+                <div style={{ marginBottom:"0.85rem" }}>
+                  <div style={{ fontSize:"0.68rem", fontWeight:700, color:MUTED, textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:"0.5rem" }}>
+                    Action Items — click to add to customer to-do
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                    {parsed.actions.map((a,i) => {
+                      const [added, setAdded] = React.useState(false);
+                      const pColor = priorityColor(a.priority);
+                      return (
+                        <div key={i} style={{ display:"flex", gap:10, padding:"0.55rem 0.75rem",
+                          background: added?"#F0FDF4":"#FFFFFF",
+                          border:`1px solid ${added?"#BBF7D0":pColor+"44"}`,
+                          borderLeft:`4px solid ${added?GREEN:pColor}`,
+                          borderRadius:6, alignItems:"flex-start", transition:"all 0.2s" }}>
+                          <div style={{ flex:1 }}>
+                            <div style={{ display:"flex", gap:6, alignItems:"center", marginBottom:3, flexWrap:"wrap" }}>
+                              <span style={{ fontSize:"0.68rem" }}>{catIcon(a.category)}</span>
+                              <span style={{ fontSize:"0.65rem", fontWeight:700, color:pColor, background:pColor+"18", borderRadius:8, padding:"1px 6px" }}>{a.priority}</span>
+                              <span style={{ fontSize:"0.7rem", fontWeight:700, color:AMBER }}>↗ {a.custName}</span>
+                              <span style={{ fontSize:"0.65rem", color:MUTED, background:"#F4F7FB", borderRadius:8, padding:"1px 6px" }}>{a.category}</span>
+                            </div>
+                            <div style={{ fontSize:"0.75rem", color:TEXT, lineHeight:1.6 }}>{a.action}</div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (added || !a.custNum) return;
+                              // Add to that customer's todos in localStorage + Supabase
+                              const key = `todos_${a.custNum}`;
+                              const existing = JSON.parse(localStorage.getItem(key)||"[]");
+                              const newTodo = {
+                                id: Date.now() + i,
+                                text: `[AI] ${a.action}`,
+                                done: false,
+                                date: new Date().toISOString().slice(0,10),
+                                by: window.__pulseUser?.name || repName,
+                              };
+                              const updated = [newTodo, ...existing];
+                              localStorage.setItem(key, JSON.stringify(updated));
+                              // Sync to Supabase
+                              const userId = window.__pulseUser?.id;
+                              if (userId) {
+                                const apRow = actionPlan.find(ap => String(ap.custNum)===String(a.custNum));
+                                syncTodosUp(userId, a.custNum, a.custName, apRow?.city||"", apRow?.salesman||repName, updated);
+                              }
+                              setAdded(true);
+                            }}
+                            disabled={added || !a.custNum}
+                            style={{ fontSize:"0.65rem", fontWeight:700, flexShrink:0, marginTop:2,
+                              color: added?"#059669":"#FFFFFF",
+                              background: added?"transparent":color,
+                              border:`1px solid ${added?GREEN:color}`,
+                              borderRadius:6, padding:"0.25rem 0.65rem", cursor: added||!a.custNum?"default":"pointer",
+                              transition:"all 0.2s" }}>
+                            {added ? "✓ Added" : "+ Add"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Coaching insight */}
+              {parsed.coaching && (
+                <div style={{ padding:"0.6rem 0.75rem", background:"#EDE9FE", border:"1px solid #C4B5FD", borderRadius:6, fontSize:"0.75rem", color:"#5B21B6", lineHeight:1.7 }}>
+                  💡 <strong>Coaching:</strong> {parsed.coaching}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* KPI row */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"0.6rem", marginBottom:"1rem" }}>
         {[
           { label:"Open To-Dos",     val:totalOpen,        color:totalOpen>0?RED:GREEN },
-          { label:"Completed",       val:totalDone,        color:GREEN },
+          { label:"Open Leads",      val:(leads||[]).filter(l=>l.status==="open"&&(l.assigned_to===currentUser?.id||l.assigned_to_name===repName)).length, color:GREEN },
           { label:"Customers w/Notes", val:data.filter(d=>d.notes).length, color:AMBER },
         ].map(k=>(
           <div key={k.label} style={{ background:"#F4F7FB", borderRadius:6, padding:"0.65rem 0.8rem", borderTop:`3px solid ${k.color}` }}>
