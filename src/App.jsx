@@ -1425,6 +1425,7 @@ export default function App() {
             onMarkInactive={(reason) => markInactive(ct.custNum, ct.customer, reason, currentUser?.name || "Admin")}
             onMarkActive={() => markActive(ct.custNum, ct.customer)}
             currentUser={currentUser}
+            onLogActivity={logActivity}
           />
         ))}
       </div>
@@ -5845,7 +5846,7 @@ function TodoItem({ todo, onToggle, onDelete, onEdit }) {
   );
 }
 
-function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecord, onMarkInactive, onMarkActive, currentUser }) {
+function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecord, onMarkInactive, onMarkActive, currentUser, onLogActivity }) {
   const [subTab, setSubTab] = useState("overview");
   const [aiLoading, setAiLoading] = useState(false);
   const [callSummary, setCallSummary] = useState(null);
@@ -5866,7 +5867,7 @@ function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecor
     window._notesSyncTimer = setTimeout(() => {
       if (currentUser) {
         syncNotesUp(currentUser.id, ap.custNum, val);
-        logActivity("update_notes", `${ap.customer}`);
+        if (onLogActivity) onLogActivity("update_notes", `${ap.customer}`);
       }
     }, 1500);
   }
@@ -5913,7 +5914,7 @@ function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecor
       date: new Date().toISOString().slice(0,10), by: currentUser?.name || ap.salesman }, ...todos];
     saveTodos(updated);
     setNewTodoText("");
-    logActivity("add_todo", `${ap.customer} — ${newTodoText.trim()}`);
+    if (onLogActivity) onLogActivity("add_todo", `${ap.customer} — ${newTodoText.trim()}`);
   }
   function toggleTodo(id) {
     saveTodos(todos.map(t => t.id===id ? {...t, done:!t.done} : t));
