@@ -642,6 +642,145 @@ function LoginScreen({ onLogin }) {
 }
 
 // ── Admin Tab ─────────────────────────────────────────────────────────────────
+
+// ── Admin Notes & Todos View ──────────────────────────────────────────────────
+function AdminNotesView() {
+  const [view, setView]       = useState("todos");   // todos | notes
+  const [repFilter, setRepFilter] = useState("all");
+  const [loaded, setLoaded]   = useState(false);
+  const [allTodos, setAllTodos] = useState([]);
+  const [allNotes, setAllNotes] = useState([]);
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  async function loadAll() {
+    // Load todos from Supabase — all reps
+    try {
+      const rows = await sbFetch("rep_todos?order=created_at.desc&limit=500");
+      if (rows) setAllTodos(rows);
+    } catch {}
+
+    // Load notes — scan localStorage for all note keys (fallback for offline)
+    const notes = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("notes_")) {
+          const custNum = key.replace("notes_", "");
+          const text    = localStorage.getItem(key);
+          if (text && text.trim()) notes.push({ custNum, text });
+        }
+      }
+    } catch {}
+    setAllNotes(notes);
+    setLoaded(true);
+  }
+
+  // Group todos by rep
+  const reps = [...new Set(allTodos.map(t => t.salesman || t.user_id || "Unknown"))].filter(Boolean).sort();
+
+  const filteredTodos = allTodos.filter(t =>
+    repFilter === "all" || t.salesman === repFilter || t.user_id === repFilter
+  );
+  const filteredNotes = allNotes;
+
+  const openCount  = allTodos.filter(t=>!t.done).length;
+  const doneCount  = allTodos.filter(t=> t.done).length;
+  const notesCount = allNotes.filter(n=>n.text).length;
+
+  return (
+    <div style={{ ...S.card, marginBottom:"1rem" }}>
+      {/* Header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.75rem", flexWrap:"wrap", gap:8 }}>
+        <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#1E5FCC", textTransform:"uppercase", letterSpacing:"0.1em" }}>
+          📝 All Rep Notes & To-Dos
+        </div>
+        <div style={{ display:"flex", gap:5 }}>
+          <button onClick={loadAll} style={{ fontSize:"0.65rem", color:MUTED, background:"none", border:`1px solid ${BORDER}`, borderRadius:4, padding:"0.25rem 0.6rem", cursor:"pointer" }}>↺ Refresh</button>
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"0.5rem", marginBottom:"0.85rem" }}>
+        {[
+          { label:"Open To-Dos",  val:openCount,  color:openCount>0?RED:GREEN },
+          { label:"Completed",    val:doneCount,  color:GREEN },
+          { label:"Total To-Dos", val:allTodos.length, color:MUTED },
+          { label:"Cust. Notes",  val:notesCount, color:AMBER },
+        ].map(k=>(
+          <div key={k.label} style={{ background:"#F4F7FB", borderRadius:6, padding:"0.5rem 0.6rem", borderTop:`3px solid ${k.color}` }}>
+            <div style={{ fontSize:"0.9rem", fontWeight:700, color:k.color }}>{k.val}</div>
+            <div style={{ fontSize:"0.58rem", color:MUTED, textTransform:"uppercase", letterSpacing:"0.05em", marginTop:1 }}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* View + rep filter */}
+      <div style={{ display:"flex", gap:6, marginBottom:"0.75rem", flexWrap:"wrap", alignItems:"center" }}>
+        {[["todos","📋 To-Dos"],["notes","📝 Notes"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setView(v)}
+            style={{ fontSize:"0.7rem", fontWeight:view===v?700:400, color:view===v?"#fff":MUTED,
+              background:view===v?"#1E5FCC":"#F4F7FB", border:`1px solid ${view===v?"#1E5FCC":BORDER}`,
+              borderRadius:6, padding:"0.3rem 0.75rem", cursor:"pointer" }}>{l}</button>
+        ))}
+        {view==="todos" && reps.length > 1 && (
+          <select value={repFilter} onChange={e=>setRepFilter(e.target.value)}
+            style={{ background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
+              padding:"0.3rem 0.5rem", borderRadius:4, fontSize:"0.7rem" }}>
+            <option value="all">All Reps</option>
+            {reps.map(r=><option key={r} value={r}>{r}</option>)}
+          </select>
+        )}
+        <span style={{ marginLeft:"auto", fontSize:"0.65rem", color:MUTED }}>
+          {view==="todos" ? `${filteredTodos.length} to-dos` : `${filteredNotes.length} customers with notes`}
+        </span>
+      </div>
+
+      {!loaded && <div style={{ fontSize:"0.75rem", color:MUTED, textAlign:"center", padding:"1rem" }}>Loading…</div>}
+
+      {/* To-Dos view */}
+      {view === "todos" && loaded && (
+        <div style={{ maxHeight:400, overflowY:"auto" }}>
+          {filteredTodos.length === 0
+            ? <div style={{ fontSize:"0.75rem", color:MUTED, textAlign:"center", padding:"1.5rem" }}>No to-dos found</div>
+            : filteredTodos.map((t, i) => (
+              <div key={i} style={{ display:"flex", gap:10, padding:"0.45rem 0",
+                borderBottom: i<filteredTodos.length-1?`1px solid ${BORDER}`:"none",
+                alignItems:"flex-start", opacity:t.done?0.6:1 }}>
+                <span style={{ fontSize:"0.85rem", flexShrink:0, marginTop:1 }}>{t.done?"☑":"☐"}</span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:"0.73rem", color:TEXT, textDecoration:t.done?"line-through":"none", wordBreak:"break-word" }}>{t.text}</div>
+                  <div style={{ fontSize:"0.62rem", color:MUTED, marginTop:2, display:"flex", gap:8, flexWrap:"wrap" }}>
+                    <span style={{ fontWeight:600, color:AMBER }}>{t.cust_name || `#${t.cust_num}`}</span>
+                    {t.salesman && <span>{t.salesman}</span>}
+                    <span>{t.created_by} · {t.created_date || new Date(t.created_at||"").toLocaleDateString()}</span>
+                    {t.done && <span style={{ color:GREEN, fontWeight:600 }}>✓ Done</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {/* Notes view */}
+      {view === "notes" && loaded && (
+        <div style={{ maxHeight:400, overflowY:"auto" }}>
+          {filteredNotes.length === 0
+            ? <div style={{ fontSize:"0.75rem", color:MUTED, textAlign:"center", padding:"1.5rem" }}>No notes found</div>
+            : filteredNotes.map((n, i) => (
+              <div key={i} style={{ padding:"0.55rem 0", borderBottom: i<filteredNotes.length-1?`1px solid ${BORDER}`:"none" }}>
+                <div style={{ fontSize:"0.68rem", fontWeight:700, color:AMBER, marginBottom:3 }}>Customer #{n.custNum}</div>
+                <div style={{ fontSize:"0.74rem", color:TEXT, lineHeight:1.65, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{n.text}</div>
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminTab({ currentUser, leads, onAddLead, onDeleteLead, convertLead }) {
   const [log, setLog] = useState([]);
   const [aiSuggestions, setAiSuggestions] = useState("");
@@ -720,8 +859,8 @@ Keep it concise and actionable, written for a sales manager.` }]
     return d.toLocaleDateString("en-US",{month:"short",day:"numeric"}) + " " + d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
   }
 
-  const actionIcon = a => a==="login"?"🔑":a==="logout"?"🚪":a==="view_customer"?"👤":a==="mark_inactive"?"⊘":a==="mark_active"?"✓":"📋";
-  const actionColor = a => a==="login"?GREEN:a==="logout"?MUTED:a==="view_customer"?AMBER:a==="mark_inactive"?RED:a==="mark_active"?GREEN:TEAL;
+  const actionIcon = a => a==="login"?"🔑":a==="logout"?"🚪":a==="view_customer"?"👤":a==="mark_inactive"?"⊘":a==="mark_active"?"✓":a==="bug_report"?"🐛":a==="suggestion"?"💡":a==="new_lead"?"🎯":a==="convert_lead"?"✓":"📋";
+  const actionColor = a => a==="login"?GREEN:a==="logout"?MUTED:a==="view_customer"?AMBER:a==="mark_inactive"?RED:a==="mark_active"?GREEN:a==="bug_report"?RED:a==="suggestion"?"#7C3AED":a==="new_lead"?"#059669":TEAL;
 
   return (
     <div>
@@ -788,6 +927,9 @@ Keep it concise and actionable, written for a sales manager.` }]
         </div>
         <LeadsTab leads={leads||[]} repName="Admin" onAddLead={onAddLead} onDeleteLead={onDeleteLead} currentUser={currentUser} isAdmin={true} allReps={["Tiffany","Larry","Austin"]} convertLead={convertLead} />
       </div>
+
+      {/* All Customer Notes & To-Dos */}
+      <AdminNotesView />
 
       {/* Suggestions & Bug Reports */}
       {suggestions.length > 0 && (
@@ -1158,14 +1300,22 @@ export default function App() {
               <span style={{ opacity:0.7, fontWeight:400 }}>Logged in: </span>{currentUser.name}
             </span>
             <button
-              onClick={() => {
+              onClick={async () => {
                 const type = window.confirm("Is this a bug? Click OK for bug, Cancel for suggestion.") ? "bug" : "suggestion";
                 const text = window.prompt(`${type === "bug" ? "🐛 Describe the bug:" : "💡 Enter your suggestion:"}`);
                 if (text && text.trim()) {
                   try {
-                    const existing = JSON.parse(localStorage.getItem("pulse_suggestions") || "[]");
                     const entry = { ts: new Date().toISOString(), user: currentUser?.name || "Unknown", userId: currentUser?.id || "", type, text: text.trim() };
+                    // Save locally
+                    const existing = JSON.parse(localStorage.getItem("pulse_suggestions") || "[]");
                     localStorage.setItem("pulse_suggestions", JSON.stringify([entry, ...existing].slice(0, 100)));
+                    // Sync to Supabase shared activity log so admin sees it
+                    let existing_log = [];
+                    try { const rv = localStorage.getItem("shared_activity_log"); if(rv) existing_log = JSON.parse(rv); } catch {}
+                    const logEntry = { ts: entry.ts, user: entry.user, userId: entry.userId, action: type === "bug" ? "bug_report" : "suggestion", detail: text.trim() };
+                    localStorage.setItem("shared_activity_log", JSON.stringify([logEntry, ...existing_log].slice(0, 1000)));
+                    // Also sync to Supabase feedback table
+                    await sbFetch("rep_feedback", "POST", { ...entry, updated_at: new Date().toISOString() });
                     alert("✓ Submitted! Your feedback has been logged for Admin review.");
                   } catch {}
                 }
