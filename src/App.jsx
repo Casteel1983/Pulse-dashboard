@@ -1944,6 +1944,7 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
       {/* Rep sub-nav */}
       <div style={{ ...S.subNav, marginBottom:"0.75rem" }}>
         <button style={S.subBtn(repSubTab==="accounts", color)} onClick={()=>setRepSubTab("accounts")}>📋 Accounts</button>
+        <button style={S.subBtn(repSubTab==="calllog",  "#0891B2")} onClick={()=>setRepSubTab("calllog")}>📞 Call Log</button>
         <button style={S.subBtn(repSubTab==="leads",    "#059669")} onClick={()=>setRepSubTab("leads")}>
           🎯 Leads
           {repLeads.filter(l=>l.status==="open").length > 0 && <span style={{ marginLeft:5, background:RED, color:"#fff", borderRadius:8, padding:"0px 6px", fontSize:"0.6rem", fontWeight:700 }}>{repLeads.filter(l=>l.status==="open").length}</span>}
@@ -1962,6 +1963,9 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
       )}
       {repSubTab === "todo" && (
         <RepTodoTab repName={repName} actionPlan={actionPlan} onCustomerClick={onCustomerClick} color={color} leads={leads} currentUser={currentUser} />
+      )}
+      {repSubTab === "calllog" && (
+        <RepCallLog repName={repName} actionPlan={actionPlan} currentUser={currentUser} />
       )}
       {repSubTab === "leads" && (
         <LeadsTab leads={repLeads} repName={repName} onAddLead={onAddLead} onDeleteLead={onDeleteLead} currentUser={currentUser} isAdmin={false} allReps={["Tiffany","Larry","Austin"]} />
@@ -2506,6 +2510,303 @@ function MapTab({ customers, weekComp }) {
 
 
 
+
+
+// ── Rep Call Log ──────────────────────────────────────────────────────────────
+function RepCallLog({ repName, actionPlan, currentUser }) {
+  const [entries, setEntries]     = useState([]);
+  const [weekFilter, setWeekFilter] = useState("all");
+  const [copied, setCopied]       = useState(null);
+  const [allCopied, setAllCopied] = useState(false);
+  const [loaded, setLoaded]       = useState(false);
+  const [newEntry, setNewEntry]   = useState({ custNum:"", date: new Date().toISOString().slice(0,10), note:"" });
+  const [showAdd, setShowAdd]     = useState(false);
+
+  // Build customer lookup from action plan
+  const custList = actionPlan.map(a => ({ custNum: String(a.custNum), name: a.customer, city: a.city }));
+
+  const CALL_LOG_KEY = `call_log_${currentUser?.id || repName}`;
+
+  useEffect(() => {
+    loadEntries();
+  }, []);
+
+  function loadEntries() {
+    try {
+      const saved = localStorage.getItem(CALL_LOG_KEY);
+      const parsed = saved ? JSON.parse(saved) : [];
+      // Sort newest first
+      setEntries(parsed.sort((a,b) => new Date(b.date) - new Date(a.date)));
+    } catch {}
+    setLoaded(true);
+  }
+
+  function saveEntries(updated) {
+    const sorted = [...updated].sort((a,b) => new Date(b.date) - new Date(a.date));
+    setEntries(sorted);
+    try { localStorage.setItem(CALL_LOG_KEY, JSON.stringify(sorted)); } catch {}
+  }
+
+  function addEntry() {
+    if (!newEntry.note.trim() || !newEntry.custNum) return;
+    const cust = custList.find(c => c.custNum === newEntry.custNum);
+    const entry = {
+      id:       `log_${Date.now()}`,
+      custNum:  newEntry.custNum,
+      custName: cust?.name || newEntry.custNum,
+      city:     cust?.city || "",
+      date:     newEntry.date,
+      note:     newEntry.note.trim(),
+      rep:      currentUser?.name || repName,
+    };
+    saveEntries([entry, ...entries]);
+    setNewEntry({ custNum:"", date:new Date().toISOString().slice(0,10), note:"" });
+    setShowAdd(false);
+  }
+
+  function deleteEntry(id) {
+    saveEntries(entries.filter(e => e.id !== id));
+  }
+
+  // Group by ISO week
+  function getWeekLabel(dateStr) {
+    const d = new Date(dateStr);
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - ((d.getDay()+6)%7));
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    const fmt = dt => dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    return `Week of ${fmt(monday)} – ${fmt(friday)}`;
+  }
+
+  function getWeekKey(dateStr) {
+    const d = new Date(dateStr);
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - ((d.getDay()+6)%7));
+    return monday.toISOString().slice(0,10);
+  }
+
+  // Build week groups
+  const weeks = {};
+  entries.forEach(e => {
+    const wk = getWeekKey(e.date);
+    if (!weeks[wk]) weeks[wk] = { label: getWeekLabel(e.date), entries:[] };
+    weeks[wk].entries.push(e);
+  });
+  const weekKeys = Object.keys(weeks).sort().reverse();
+
+  const displayed = weekFilter === "all" ? entries : entries.filter(e => getWeekKey(e.date) === weekFilter);
+
+  // Format for CRM copy
+  function formatForCRM(ents) {
+    return ents.map(e =>
+      `Customer: ${e.custName}${e.city?` (${e.city})`:""}\nDate: ${new Date(e.date).toLocaleDateString("en-US",{weekday:"short",month:"long",day:"numeric",year:"numeric"})}\nNotes: ${e.note}`
+    ).join("\n\n---\n\n");
+  }
+
+  function copyWeek(wkKey) {
+    const ents = weeks[wkKey]?.entries || [];
+    navigator.clipboard.writeText(formatForCRM(ents)).then(() => {
+      setCopied(wkKey);
+      setTimeout(() => setCopied(null), 2500);
+    });
+  }
+
+  function copyAll() {
+    navigator.clipboard.writeText(formatForCRM(displayed)).then(() => {
+      setAllCopied(true);
+      setTimeout(() => setAllCopied(false), 2500);
+    });
+  }
+
+  return (
+    <div>
+      {/* Header bar */}
+      <div style={{ display:"flex", gap:8, marginBottom:"0.85rem", alignItems:"center", flexWrap:"wrap" }}>
+        <div>
+          <div style={{ fontSize:"0.8rem", fontWeight:700, color:TEXT }}>📞 Call Notes Log</div>
+          <div style={{ fontSize:"0.68rem", color:MUTED }}>{entries.length} entries · organized for CRM copy-paste</div>
+        </div>
+        <div style={{ display:"flex", gap:6, marginLeft:"auto", flexWrap:"wrap" }}>
+          {displayed.length > 0 && (
+            <button onClick={copyAll}
+              style={{ fontSize:"0.7rem", fontWeight:700,
+                color: allCopied?"#fff":"#0891B2",
+                background: allCopied?"#0891B2":"#EFF6FF",
+                border:`1px solid ${allCopied?"#0891B2":"#BFDBFE"}`,
+                borderRadius:6, padding:"0.35rem 0.85rem", cursor:"pointer", transition:"all 0.2s" }}>
+              {allCopied ? "✓ Copied!" : `📋 Copy ${weekFilter==="all"?"All":"Week"} for CRM`}
+            </button>
+          )}
+          <button onClick={()=>setShowAdd(!showAdd)}
+            style={{ ...S.btn("#0891B2"), fontSize:"0.7rem", fontWeight:700 }}>
+            {showAdd ? "× Cancel" : "+ Add Note"}
+          </button>
+        </div>
+      </div>
+
+      {/* Add note form */}
+      {showAdd && (
+        <div style={{ ...S.card, border:`2px solid #0891B2`, marginBottom:"1rem" }}>
+          <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#0891B2", marginBottom:"0.75rem" }}>📝 Add Call Note</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.6rem", marginBottom:"0.6rem" }}>
+            <div>
+              <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Customer *</div>
+              <select value={newEntry.custNum} onChange={e=>setNewEntry(p=>({...p,custNum:e.target.value}))}
+                style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
+                  padding:"0.4rem 0.65rem", borderRadius:6, fontSize:"0.75rem", outline:"none" }}>
+                <option value="">— Select Customer —</option>
+                {custList.map(c=><option key={c.custNum} value={c.custNum}>{c.name}{c.city?` (${c.city})`:""}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Date *</div>
+              <input type="date" value={newEntry.date} onChange={e=>setNewEntry(p=>({...p,date:e.target.value}))}
+                style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
+                  padding:"0.4rem 0.65rem", borderRadius:6, fontSize:"0.75rem", outline:"none", boxSizing:"border-box" }} />
+            </div>
+          </div>
+          <div style={{ marginBottom:"0.75rem" }}>
+            <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Call Notes *</div>
+            <textarea value={newEntry.note} onChange={e=>setNewEntry(p=>({...p,note:e.target.value}))}
+              placeholder="What happened on this call? What was discussed, decided, or followed up on?"
+              rows={4}
+              style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
+                padding:"0.5rem 0.75rem", borderRadius:6, fontSize:"0.78rem", resize:"vertical",
+                outline:"none", boxSizing:"border-box", lineHeight:1.7 }}
+              onFocus={e=>e.target.style.borderColor="#0891B2"}
+              onBlur={e=>e.target.style.borderColor=BORDER}
+            />
+          </div>
+          <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+            <button onClick={()=>{setShowAdd(false);setNewEntry({custNum:"",date:new Date().toISOString().slice(0,10),note:"" });}}
+              style={{ ...S.btn(MUTED) }}>Cancel</button>
+            <button onClick={addEntry} disabled={!newEntry.note.trim()||!newEntry.custNum}
+              style={{ ...S.btn("#0891B2"), background:"#0891B2", color:"#fff",
+                opacity:!newEntry.note.trim()||!newEntry.custNum?0.5:1 }}>
+              Save Note
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Week filter */}
+      {weekKeys.length > 1 && (
+        <div style={{ display:"flex", gap:5, marginBottom:"0.75rem", flexWrap:"wrap", alignItems:"center" }}>
+          <button onClick={()=>setWeekFilter("all")}
+            style={{ fontSize:"0.68rem", fontWeight:weekFilter==="all"?700:400,
+              color:weekFilter==="all"?"#fff":MUTED,
+              background:weekFilter==="all"?"#0891B2":"#F4F7FB",
+              border:`1px solid ${weekFilter==="all"?"#0891B2":BORDER}`,
+              borderRadius:6, padding:"0.25rem 0.65rem", cursor:"pointer" }}>All Weeks</button>
+          {weekKeys.map(wk=>(
+            <button key={wk} onClick={()=>setWeekFilter(wk)}
+              style={{ fontSize:"0.68rem", fontWeight:weekFilter===wk?700:400,
+                color:weekFilter===wk?"#fff":MUTED,
+                background:weekFilter===wk?"#0891B2":"#F4F7FB",
+                border:`1px solid ${weekFilter===wk?"#0891B2":BORDER}`,
+                borderRadius:6, padding:"0.25rem 0.65rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+              {weeks[wk].label} ({weeks[wk].entries.length})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loaded && <div style={{ ...S.card, textAlign:"center", padding:"1.5rem", color:MUTED }}>Loading…</div>}
+      {loaded && entries.length === 0 && (
+        <div style={{ ...S.card, textAlign:"center", padding:"2rem", color:MUTED }}>
+          <div style={{ fontSize:"1.5rem", marginBottom:8 }}>📞</div>
+          <div style={{ fontWeight:600, marginBottom:4 }}>No call notes yet</div>
+          <div style={{ fontSize:"0.72rem" }}>Click + Add Note to start logging your calls</div>
+        </div>
+      )}
+
+      {/* Entries by week */}
+      {weekFilter === "all"
+        ? weekKeys.map(wk => (
+            <div key={wk} style={{ marginBottom:"1.25rem" }}>
+              {/* Week header */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+                padding:"0.45rem 0.85rem", background:"#EFF6FF", border:`1px solid #BFDBFE`,
+                borderRadius:8, marginBottom:"0.5rem" }}>
+                <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#0891B2" }}>
+                  📅 {weeks[wk].label}
+                  <span style={{ marginLeft:8, fontSize:"0.65rem", fontWeight:400, color:MUTED }}>{weeks[wk].entries.length} note{weeks[wk].entries.length!==1?"s":""}</span>
+                </div>
+                <button onClick={()=>copyWeek(wk)}
+                  style={{ fontSize:"0.65rem", fontWeight:700,
+                    color: copied===wk?"#fff":"#0891B2",
+                    background: copied===wk?"#0891B2":"transparent",
+                    border:`1px solid ${copied===wk?"#0891B2":"#BFDBFE"}`,
+                    borderRadius:5, padding:"0.2rem 0.65rem", cursor:"pointer", transition:"all 0.2s" }}>
+                  {copied===wk ? "✓ Copied!" : "📋 Copy Week"}
+                </button>
+              </div>
+              {/* Entries */}
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {weeks[wk].entries.map(e => (
+                  <EntryCard key={e.id} entry={e} onDelete={deleteEntry} formatForCRM={formatForCRM} />
+                ))}
+              </div>
+            </div>
+          ))
+        : (
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {displayed.map(e => (
+              <EntryCard key={e.id} entry={e} onDelete={deleteEntry} formatForCRM={formatForCRM} />
+            ))}
+          </div>
+        )
+      }
+    </div>
+  );
+}
+
+function EntryCard({ entry: e, onDelete, formatForCRM }) {
+  const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const isLong = e.note.length > 180;
+
+  return (
+    <div style={{ ...S.card, padding:"0.75rem 1rem", borderLeft:"3px solid #0891B2" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"0.4rem", flexWrap:"wrap", gap:6 }}>
+        <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+          <span style={{ fontSize:"0.78rem", fontWeight:700, color:AMBER }}>↗ {e.custName}</span>
+          {e.city && <span style={{ fontSize:"0.65rem", color:MUTED }}>📍 {e.city}</span>}
+          <span style={{ fontSize:"0.65rem", color:MUTED, background:"#F4F7FB", borderRadius:6, padding:"1px 7px" }}>
+            {new Date(e.date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
+          </span>
+          <span style={{ fontSize:"0.65rem", color:"#0891B2", fontWeight:600 }}>{e.rep}</span>
+        </div>
+        <div style={{ display:"flex", gap:4 }}>
+          <button onClick={()=>{ navigator.clipboard.writeText(formatForCRM([e])).then(()=>{ setCopied(true); setTimeout(()=>setCopied(false),2000); }); }}
+            style={{ fontSize:"0.63rem", fontWeight:copied?700:400,
+              color:copied?"#fff":"#0891B2", background:copied?"#0891B2":"transparent",
+              border:`1px solid ${copied?"#0891B2":"#BFDBFE"}`, borderRadius:4, padding:"1px 7px", cursor:"pointer", transition:"all 0.2s" }}>
+            {copied?"✓":"📋"}
+          </button>
+          <button onClick={()=>{ if(window.confirm("Delete this note?")) onDelete(e.id); }}
+            style={{ fontSize:"0.7rem", color:MUTED, background:"none", border:"none", cursor:"pointer", padding:"0 2px" }}>×</button>
+        </div>
+      </div>
+      <div style={{ fontSize:"0.77rem", color:TEXT, lineHeight:1.75,
+        overflow: expanded||!isLong ? "visible" : "hidden",
+        display: expanded||!isLong ? "block" : "-webkit-box",
+        WebkitLineClamp: expanded ? "none" : 4,
+        WebkitBoxOrient: "vertical",
+        whiteSpace: "pre-wrap", wordBreak:"break-word" }}>
+        {e.note}
+      </div>
+      {isLong && (
+        <button onClick={()=>setExpanded(!expanded)}
+          style={{ fontSize:"0.65rem", color:"#0891B2", background:"none", border:"none", cursor:"pointer", padding:"3px 0 0", display:"block" }}>
+          {expanded ? "▲ Show less" : "▼ Show more"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 // ── Leads Tab ─────────────────────────────────────────────────────────────────
 function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmin, allReps, convertLead }) {
