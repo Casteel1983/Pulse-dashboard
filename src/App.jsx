@@ -859,8 +859,8 @@ Keep it concise and actionable, written for a sales manager.` }]
     return d.toLocaleDateString("en-US",{month:"short",day:"numeric"}) + " " + d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
   }
 
-  const actionIcon = a => a==="login"?"🔑":a==="logout"?"🚪":a==="view_customer"?"👤":a==="mark_inactive"?"⊘":a==="mark_active"?"✓":a==="bug_report"?"🐛":a==="suggestion"?"💡":a==="new_lead"?"🎯":a==="convert_lead"?"✓":"📋";
-  const actionColor = a => a==="login"?GREEN:a==="logout"?MUTED:a==="view_customer"?AMBER:a==="mark_inactive"?RED:a==="mark_active"?GREEN:a==="bug_report"?RED:a==="suggestion"?"#7C3AED":a==="new_lead"?"#059669":TEAL;
+  const actionIcon = a => a==="login"?"🔑":a==="logout"?"🚪":a==="view_customer"?"👤":a==="mark_inactive"?"⊘":a==="mark_active"?"✓":a==="bug_report"?"🐛":a==="suggestion"?"💡":a==="new_lead"?"🎯":a==="convert_lead"?"✓":a==="add_todo"?"☐":a==="update_notes"?"📝":a==="call_note"?"📞":"📋";
+  const actionColor = a => a==="login"?GREEN:a==="logout"?MUTED:a==="view_customer"?AMBER:a==="mark_inactive"?RED:a==="mark_active"?GREEN:a==="bug_report"?RED:a==="suggestion"?"#7C3AED":a==="new_lead"?"#059669":a==="add_todo"?AMBER:a==="update_notes"?TEAL:a==="call_note"?"#0891B2":TEAL;
 
   return (
     <div>
@@ -1032,9 +1032,13 @@ export default function App() {
   }
 
   async function addLead(lead) {
+    // Normalize assigned_to to rep name (lowercase) so filter works cross-device
+    const assignedName = lead.assigned_to_name || lead.assigned_to || currentUser?.name || "";
     const newLead = {
       id: `lead_${Date.now()}`,
       ...lead,
+      assigned_to:      assignedName.toLowerCase(),
+      assigned_to_name: assignedName,
       status: "open",
       created_by: currentUser?.id || "",
       created_by_name: currentUser?.name || "",
@@ -1309,11 +1313,8 @@ export default function App() {
                     // Save locally
                     const existing = JSON.parse(localStorage.getItem("pulse_suggestions") || "[]");
                     localStorage.setItem("pulse_suggestions", JSON.stringify([entry, ...existing].slice(0, 100)));
-                    // Sync to Supabase shared activity log so admin sees it
-                    let existing_log = [];
-                    try { const rv = localStorage.getItem("shared_activity_log"); if(rv) existing_log = JSON.parse(rv); } catch {}
-                    const logEntry = { ts: entry.ts, user: entry.user, userId: entry.userId, action: type === "bug" ? "bug_report" : "suggestion", detail: text.trim() };
-                    localStorage.setItem("shared_activity_log", JSON.stringify([logEntry, ...existing_log].slice(0, 1000)));
+                    // Write directly to activity log using logActivity
+                    logActivity(type === "bug" ? "bug_report" : "suggestion", text.trim());
                     // Also sync to Supabase feedback table
                     await sbFetch("rep_feedback", "POST", { ...entry, updated_at: new Date().toISOString() });
                     alert("✓ Submitted! Your feedback has been logged for Admin review.");
@@ -1405,12 +1406,13 @@ export default function App() {
         {tab === "setup"    && <FileSetup fileData={fileData} onUpload={handleUpload} onClear={clearAll} />}
         {tab === "overview" && <OverviewTab weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} />}
         {["tiffany","larry","austin","house"].includes(tab) && (
-          <RepTab repName={tab.charAt(0).toUpperCase()+tab.slice(1)} weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} inactiveCustomers={inactiveCustomers} leads={leads} onAddLead={addLead} onDeleteLead={deleteLead} currentUser={currentUser} />
+          <RepTab repName={tab.charAt(0).toUpperCase()+tab.slice(1)} weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} inactiveCustomers={inactiveCustomers} leads={leads} onAddLead={addLead} onDeleteLead={deleteLead} currentUser={currentUser} onLogActivity={logActivity} />
         )}
         {tab === "ai" && <AITab weekComp={weekComp} initialPrompt={aiPrompt} onClearPrompt={() => setAiPrompt("")} />}
         {tab === "map" && <MapTab customers={fileData.customers || SEED_CUSTOMERS} weekComp={weekComp} />}
         {tab === "ar" && <ARTab ar={fileData.ar || SEED_AR} />}
         {tab === "cardealer" && <CarDealerTab weekComp={weekComp} customers={fileData.customers || SEED_CUSTOMERS} onCustomerClick={openCustomer} />}
+        {tab === "adminlog" && currentUser?.id === "admin" && <AdminTab currentUser={currentUser} leads={leads} onAddLead={addLead} onDeleteLead={deleteLead} convertLead={convertLead} />}
         {custTabs.map(ct => tab === `cust_${ct.custNum}` && (
           <CustomerDetailTab
             key={ct.custNum}
@@ -1819,7 +1821,7 @@ function TrendView({ weeks }) {
 }
 
 // ── Rep Tab ───────────────────────────────────────────────────────────────────
-function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inactiveCustomers, leads, onAddLead, onDeleteLead, currentUser }) {
+function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inactiveCustomers, leads, onAddLead, onDeleteLead, currentUser, onLogActivity }) {
   const color = REP_COLORS[repName] || AMBER;
   const [cityFilter, setCityFilter] = useState("All");
   const [showShared, setShowShared] = useState(true);
@@ -1827,7 +1829,14 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
   // Austin gets shared accounts from other reps where Industrial, OTR, or Farm is the top dept
   const AUSTIN_TARGET_DEPTS = ["INDUSTRIAL TIRES", "OFF THE ROAD TIRES", "FARM TIRES"];
   const isAustin = repName === "Austin";
-  const repLeads = (leads||[]).filter(l => l.assigned_to === currentUser?.id || l.assigned_to_name === repName || l.created_by === currentUser?.id);
+  const repLeads = (leads||[]).filter(l => {
+    const assignedTo = (l.assigned_to_name||"").toLowerCase();
+    const repLower   = (repName||"").toLowerCase();
+    return assignedTo === repLower
+      || l.assigned_to === currentUser?.id
+      || l.created_by  === currentUser?.id
+      || (currentUser?.id !== "admin" && assignedTo === (currentUser?.name||"").toLowerCase());
+  });
 
 
   const ownAccounts = (weekComp?.actionPlan || []).filter(a => a.salesman.toLowerCase() === repName.toLowerCase());
@@ -1965,7 +1974,7 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
         <RepTodoTab repName={repName} actionPlan={actionPlan} onCustomerClick={onCustomerClick} color={color} leads={leads} currentUser={currentUser} />
       )}
       {repSubTab === "calllog" && (
-        <RepCallLog repName={repName} actionPlan={actionPlan} currentUser={currentUser} />
+        <RepCallLog repName={repName} actionPlan={actionPlan} currentUser={currentUser} onLogActivity={onLogActivity} />
       )}
       {repSubTab === "leads" && (
         <LeadsTab leads={repLeads} repName={repName} onAddLead={onAddLead} onDeleteLead={onDeleteLead} currentUser={currentUser} isAdmin={false} allReps={["Tiffany","Larry","Austin"]} />
@@ -2513,7 +2522,7 @@ function MapTab({ customers, weekComp }) {
 
 
 // ── Rep Call Log ──────────────────────────────────────────────────────────────
-function RepCallLog({ repName, actionPlan, currentUser }) {
+function RepCallLog({ repName, actionPlan, currentUser, onLogActivity }) {
   const [entries, setEntries]     = useState([]);
   const [weekFilter, setWeekFilter] = useState("all");
   const [copied, setCopied]       = useState(null);
@@ -2535,13 +2544,13 @@ function RepCallLog({ repName, actionPlan, currentUser }) {
     try {
       const saved = localStorage.getItem(CALL_LOG_KEY);
       const parsed = saved ? JSON.parse(saved) : [];
-      // Sort newest first
       setEntries(parsed.sort((a,b) => new Date(b.date) - new Date(a.date)));
     } catch {}
     setLoaded(true);
   }
 
   function saveEntries(updated) {
+    // Keep newest first in storage, display will reverse as needed
     const sorted = [...updated].sort((a,b) => new Date(b.date) - new Date(a.date));
     setEntries(sorted);
     try { localStorage.setItem(CALL_LOG_KEY, JSON.stringify(sorted)); } catch {}
@@ -2562,6 +2571,7 @@ function RepCallLog({ repName, actionPlan, currentUser }) {
     saveEntries([entry, ...entries]);
     setNewEntry({ custNum:"", date:new Date().toISOString().slice(0,10), note:"" });
     setShowAdd(false);
+    if (onLogActivity) onLogActivity("call_note", `${entry.custName} — ${entry.note.slice(0,60)}${entry.note.length>60?"…":""}`);
   }
 
   function deleteEntry(id) {
@@ -2593,9 +2603,10 @@ function RepCallLog({ repName, actionPlan, currentUser }) {
     if (!weeks[wk]) weeks[wk] = { label: getWeekLabel(e.date), entries:[] };
     weeks[wk].entries.push(e);
   });
-  const weekKeys = Object.keys(weeks).sort().reverse();
+  const weekKeys = Object.keys(weeks).sort(); // oldest first
 
-  const displayed = weekFilter === "all" ? entries : entries.filter(e => getWeekKey(e.date) === weekFilter);
+  const displayed = (weekFilter === "all" ? entries : entries.filter(e => getWeekKey(e.date) === weekFilter))
+    .sort((a,b) => new Date(a.date) - new Date(b.date)); // oldest first
 
   // Format for CRM copy
   function formatForCRM(ents) {
@@ -2745,7 +2756,7 @@ function RepCallLog({ repName, actionPlan, currentUser }) {
               </div>
               {/* Entries */}
               <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                {weeks[wk].entries.map(e => (
+                {[...weeks[wk].entries].sort((a,b)=>new Date(a.date)-new Date(b.date)).map(e => (
                   <EntryCard key={e.id} entry={e} onDelete={deleteEntry} formatForCRM={formatForCRM} />
                 ))}
               </div>
@@ -5846,7 +5857,10 @@ function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecor
     // Sync to Supabase (debounced — fire after 1.5s pause)
     if (window._notesSyncTimer) clearTimeout(window._notesSyncTimer);
     window._notesSyncTimer = setTimeout(() => {
-      if (currentUser) syncNotesUp(currentUser.id, ap.custNum, val);
+      if (currentUser) {
+        syncNotesUp(currentUser.id, ap.custNum, val);
+        logActivity("update_notes", `${ap.customer}`);
+      }
     }, 1500);
   }
 
@@ -5892,6 +5906,7 @@ function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecor
       date: new Date().toISOString().slice(0,10), by: currentUser?.name || ap.salesman }, ...todos];
     saveTodos(updated);
     setNewTodoText("");
+    logActivity("add_todo", `${ap.customer} — ${newTodoText.trim()}`);
   }
   function toggleTodo(id) {
     saveTodos(todos.map(t => t.id===id ? {...t, done:!t.done} : t));
