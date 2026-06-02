@@ -838,10 +838,20 @@ function AdminTab({ currentUser, leads, onAddLead, onDeleteLead, convertLead }) 
     setLoaded(true);
   }
 
+  const [allLeads, setAllLeads] = useState(leads || []);
+
   useEffect(() => {
-    refreshLog();           // show local immediately
-    refreshFromSupabase();  // then pull all reps from cloud
+    refreshLog();
+    refreshFromSupabase();
+    // Pull all leads from Supabase
+    sbFetch("rep_leads?order=created_at.desc&limit=200").then(rows => {
+      if (rows && rows.length > 0) setAllLeads(rows);
+      else setAllLeads(leads || []);
+    });
   }, []);
+
+  // Keep in sync with prop
+  useEffect(() => { if (!allLeads.length) setAllLeads(leads || []); }, [leads]);
 
   const users = [...new Set(log.map(e => e.user))].sort();
   const filtered = filter === "all" ? log : log.filter(e => e.user === filter);
