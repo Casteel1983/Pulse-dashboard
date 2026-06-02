@@ -787,17 +787,22 @@ function AdminTab({ currentUser, leads, onAddLead, onDeleteLead, convertLead }) 
   const [aiLoading, setAiLoading] = useState(false);
   const [filter, setFilter] = useState("all");
   const [loaded, setLoaded] = useState(false);
+  const [inactiveList, setInactiveList] = useState({});
+  const [suggestions, setSuggestions] = useState([]);
 
-  useEffect(() => {
-    async function loadLog() {
-      try {
-        const res=(()=>{ const v=localStorage.getItem("shared_activity_log"); return v?{value:v}:null; })();
-        if (res?.value) setLog(JSON.parse(res.value));
-      } catch {}
-      setLoaded(true);
-    }
-    loadLog();
-  }, []);
+  function refreshLog() {
+    try {
+      const logRes = localStorage.getItem("shared_activity_log");
+      setLog(logRes ? JSON.parse(logRes) : []);
+      const inactRes = localStorage.getItem("inactive_customers");
+      setInactiveList(inactRes ? JSON.parse(inactRes) : {});
+      const sugRes = localStorage.getItem("pulse_suggestions");
+      setSuggestions(sugRes ? JSON.parse(sugRes) : []);
+    } catch {}
+    setLoaded(true);
+  }
+
+  useEffect(() => { refreshLog(); }, []);
 
   const users = [...new Set(log.map(e => e.user))].sort();
   const filtered = filter === "all" ? log : log.filter(e => e.user === filter);
