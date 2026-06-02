@@ -262,6 +262,22 @@ async function syncAllTodosDown(userId) {
   return rows || null;
 }
 
+// Activity log sync — write to Supabase so admin sees all reps
+async function syncActivityUp(entry) {
+  await sbFetch("rep_activity", "POST", {
+    ts:        entry.ts,
+    user_name: entry.user,
+    user_id:   entry.userId,
+    action:    entry.action,
+    detail:    entry.detail,
+    updated_at: new Date().toISOString(),
+  });
+}
+async function syncActivityDown() {
+  const rows = await sbFetch("rep_activity?order=ts.desc&limit=500");
+  return rows || [];
+}
+
 // Leads sync
 async function syncLeadUp(lead) {
   await sbFetch("rep_leads", "POST", { ...lead, updated_at: new Date().toISOString() });
@@ -802,7 +818,30 @@ function AdminTab({ currentUser, leads, onAddLead, onDeleteLead, convertLead }) 
     setLoaded(true);
   }
 
-  useEffect(() => { refreshLog(); }, []);
+  async function refreshFromSupabase() {
+    // Pull ALL rep activity from Supabase — works across devices
+    const rows = await syncActivityDown();
+    if (rows.length > 0) {
+      const mapped = rows.map(r => ({
+        ts: r.ts, user: r.user_name, userId: r.user_id,
+        action: r.action, detail: r.detail,
+      }));
+      // Merge with local, dedupe by ts+user+action
+      const local = JSON.parse(localStorage.getItem("shared_activity_log") || "[]");
+      const seen = new Set(local.map(e => e.ts + e.userId + e.action));
+      const merged = [...local, ...mapped.filter(e => !seen.has(e.ts + e.userId + e.action))]
+        .sort((a,b) => new Date(b.ts) - new Date(a.ts))
+        .slice(0, 1000);
+      setLog(merged);
+      localStorage.setItem("shared_activity_log", JSON.stringify(merged));
+    }
+    setLoaded(true);
+  }
+
+  useEffect(() => {
+    refreshLog();           // show local immediately
+    refreshFromSupabase();  // then pull all reps from cloud
+  }, []);
 
   const users = [...new Set(log.map(e => e.user))].sort();
   const filtered = filter === "all" ? log : log.filter(e => e.user === filter);
@@ -930,7 +969,7 @@ Keep it concise and actionable, written for a sales manager.` }]
             🎯 Leads <span style={{ color:MUTED, fontWeight:400 }}>({(leads||[]).filter(l=>l.status==="open").length} open)</span>
           </div>
         </div>
-        <LeadsTab leads={leads||[]} repName="Admin" onAddLead={onAddLead} onDeleteLead={onDeleteLead} currentUser={currentUser} isAdmin={true} allReps={["Tiffany","Larry","Austin"]} convertLead={convertLead} />
+        <LeadsTab leads={allLeads} repName="Admin" onAddLead={onAddLead} onDeleteLead={onDeleteLead} currentUser={currentUser} isAdmin={true} allReps={["Tiffany","Larry","Austin"]} convertLead={convertLead} />
       </div>
 
       {/* All Customer Notes & To-Dos */}
@@ -970,7 +1009,7 @@ Keep it concise and actionable, written for a sales manager.` }]
             Activity Log <span style={{ color:MUTED, fontWeight:400 }}>({filtered.length} entries)</span>
           </div>
           <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-            <button onClick={refreshLog} style={{ fontSize:"0.68rem", color:AMBER, background:"#EEF4FF", border:`1px solid ${BORDER}`, borderRadius:4, padding:"0.3rem 0.65rem", cursor:"pointer" }}>↺ Refresh</button>
+            <button onClick={()=>{ refreshLog(); refreshFromSupabase(); }} style={{ fontSize:"0.68rem", color:AMBER, background:"#EEF4FF", border:`1px solid ${BORDER}`, borderRadius:4, padding:"0.3rem 0.65rem", cursor:"pointer" }}>↺ Refresh</button>
             <select value={filter} onChange={e=>setFilter(e.target.value)}
               style={{ background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT, padding:"0.3rem 0.5rem", borderRadius:4, fontSize:"0.7rem" }}>
               <option value="all">All Users</option>
@@ -1154,11 +1193,13 @@ export default function App() {
     const u = userOverride || currentUser;
     if (!u) return;
     try {
+      const entry = { ts: new Date().toISOString(), user: u.name, userId: u.id, action, detail };
+      // Write to localStorage (fast, local)
       let existing = [];
       try { const rv = localStorage.getItem("shared_activity_log"); if(rv) existing = JSON.parse(rv); } catch {}
-      const entry = { ts: new Date().toISOString(), user: u.name, userId: u.id, action, detail };
-      const updated = [entry, ...existing].slice(0, 1000);
-      localStorage.setItem("shared_activity_log", JSON.stringify(updated));
+      localStorage.setItem("shared_activity_log", JSON.stringify([entry, ...existing].slice(0, 1000)));
+      // Push to Supabase (so admin sees ALL reps from any device)
+      syncActivityUp(entry);
     } catch {}
   }
 
