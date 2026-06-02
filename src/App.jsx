@@ -4031,45 +4031,6 @@ function ARTab({ ar }) {
         </div>
       </div>
 
-      {/* Inactive banner */}
-      {isInactive && (
-        <div style={{ padding:"0.6rem 1rem", background:"#FEF2F2", border:"2px solid #FECACA", borderRadius:8, marginBottom:"0.75rem", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
-          <span style={{ fontSize:"0.85rem" }}>⊘</span>
-          <div style={{ flex:1 }}>
-            <span style={{ fontSize:"0.75rem", fontWeight:700, color:RED }}>INACTIVE</span>
-            <span style={{ fontSize:"0.72rem", color:"#991B1B", marginLeft:8 }}>Marked by {inactiveRecord.by} on {inactiveRecord.date}</span>
-            {inactiveRecord.reason && <div style={{ fontSize:"0.72rem", color:"#991B1B", marginTop:2 }}>Reason: {inactiveRecord.reason}</div>}
-          </div>
-          <button onClick={() => { if(window.confirm(`Reactivate ${ap.customer}?`)) onMarkActive(); }}
-            style={{ background:"#F0FDF4", border:"1px solid #BBF7D0", color:GREEN, borderRadius:4, padding:"0.3rem 0.75rem", cursor:"pointer", fontSize:"0.72rem", fontWeight:700 }}>
-            ✓ Reactivate
-          </button>
-        </div>
-      )}
-
-      {/* Mark inactive form */}
-      {showInactiveForm && (
-        <div style={{ ...S.card, border:`2px solid ${RED}`, marginBottom:"0.75rem" }}>
-          <div style={{ fontSize:"0.75rem", fontWeight:700, color:RED, marginBottom:"0.75rem" }}>⊘ Mark {ap.customer} as Inactive</div>
-          <textarea
-            value={inactiveReason}
-            onChange={e => setInactiveReason(e.target.value)}
-            placeholder="Reason for marking inactive (e.g. closed, no longer buying, moved to competitor)..."
-            rows={3}
-            style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT, padding:"0.5rem 0.75rem", borderRadius:6, fontSize:"0.78rem", resize:"vertical", boxSizing:"border-box", marginBottom:"0.75rem" }}
-          />
-          <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-            <button onClick={() => { setShowInactiveForm(false); setInactiveReason(""); }} style={{ ...S.btn(MUTED) }}>Cancel</button>
-            <button onClick={() => {
-              if (!inactiveReason.trim()) { alert("Please enter a reason."); return; }
-              onMarkInactive(inactiveReason.trim());
-              setShowInactiveForm(false);
-              setInactiveReason("");
-            }} style={{ ...S.btn(RED), background:RED, color:"#fff" }}>Confirm Inactive</button>
-          </div>
-        </div>
-      )}
-
       {/* Sub tabs */}
       <div style={S.subNav}>
         <button style={S.subBtn(subTab==="aging")} onClick={()=>setSubTab("aging")}>📊 Aging Summary</button>
