@@ -283,7 +283,19 @@ async function syncLeadUp(lead) {
   await sbFetch("rep_leads", "POST", { ...lead, updated_at: new Date().toISOString() });
 }
 async function syncLeadsDown(userId) {
-  const rows = await sbFetch(`rep_leads?or=(assigned_to.eq.${encodeURIComponent(userId)},created_by.eq.${encodeURIComponent(userId)})&order=created_at.desc`);
+  // Fetch leads assigned to this user (by name match — assigned_to stores lowercase name)
+  const [assigned, created] = await Promise.all([
+    sbFetch(`rep_leads?assigned_to=eq.${encodeURIComponent(userId)}&order=created_at.desc`),
+    sbFetch(`rep_leads?created_by=eq.${encodeURIComponent(userId)}&order=created_at.desc`),
+  ]);
+  // Merge and dedupe
+  const all = [...(assigned||[]), ...(created||[])];
+  const seen = new Set();
+  return all.filter(r => { if(seen.has(r.id)) return false; seen.add(r.id); return true; });
+}
+async function syncAllLeadsDown() {
+  // Admin only — fetch ALL leads
+  const rows = await sbFetch(`rep_leads?order=created_at.desc&limit=500`);
   return rows || [];
 }
 async function updateLeadUp(leadId, updates) {
@@ -678,19 +690,31 @@ function AdminNotesView() {
       if (rows) setAllTodos(rows);
     } catch {}
 
-    // Load notes — scan localStorage for all note keys (fallback for offline)
-    const notes = [];
+    // Load notes from Supabase — all reps
     try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("notes_")) {
-          const custNum = key.replace("notes_", "");
-          const text    = localStorage.getItem(key);
-          if (text && text.trim()) notes.push({ custNum, text });
-        }
+      const noteRows = await sbFetch("rep_notes?order=updated_at.desc&limit=1000");
+      if (noteRows && noteRows.length > 0) {
+        setAllNotes(noteRows.map(r => ({
+          custNum:  r.cust_num,
+          userId:   r.user_id,
+          text:     r.notes,
+          updatedAt: r.updated_at,
+        })));
+      } else {
+        // Fallback: scan admin's localStorage
+        const notes = [];
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith("notes_")) {
+              const text = localStorage.getItem(key);
+              if (text && text.trim()) notes.push({ custNum: key.replace("notes_",""), text });
+            }
+          }
+        } catch {}
+        setAllNotes(notes);
       }
     } catch {}
-    setAllNotes(notes);
     setLoaded(true);
   }
 
@@ -787,7 +811,11 @@ function AdminNotesView() {
             ? <div style={{ fontSize:"0.75rem", color:MUTED, textAlign:"center", padding:"1.5rem" }}>No notes found</div>
             : filteredNotes.map((n, i) => (
               <div key={i} style={{ padding:"0.55rem 0", borderBottom: i<filteredNotes.length-1?`1px solid ${BORDER}`:"none" }}>
-                <div style={{ fontSize:"0.68rem", fontWeight:700, color:AMBER, marginBottom:3 }}>Customer #{n.custNum}</div>
+                <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:3, flexWrap:"wrap" }}>
+                  <span style={{ fontSize:"0.68rem", fontWeight:700, color:AMBER }}>Customer #{n.custNum}</span>
+                  {n.userId && <span style={{ fontSize:"0.65rem", color:"#7C3AED", background:"#EDE9FE", borderRadius:8, padding:"1px 6px", fontWeight:600 }}>{n.userId}</span>}
+                  {n.updatedAt && <span style={{ fontSize:"0.62rem", color:MUTED }}>{new Date(n.updatedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>}
+                </div>
                 <div style={{ fontSize:"0.74rem", color:TEXT, lineHeight:1.65, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{n.text}</div>
               </div>
             ))}
@@ -844,7 +872,7 @@ function AdminTab({ currentUser, leads, onAddLead, onDeleteLead, convertLead }) 
     refreshLog();
     refreshFromSupabase();
     // Pull all leads from Supabase
-    sbFetch("rep_leads?order=created_at.desc&limit=200").then(rows => {
+    syncAllLeadsDown().then(rows => {
       if (rows && rows.length > 0) setAllLeads(rows);
       else setAllLeads(leads || []);
     });
@@ -1065,18 +1093,27 @@ export default function App() {
 
   // Load leads from storage
   useEffect(() => {
+    // Load from localStorage first (instant)
     try {
       const saved = localStorage.getItem("pulse_leads");
       if (saved) setLeads(JSON.parse(saved));
     } catch {}
-    // Sync from Supabase
+    // Always sync from Supabase after login to get leads assigned by admin
     if (currentUser) {
-      syncLeadsDown(currentUser.id).then(rows => {
-        if (rows.length > 0) {
-          setLeads(rows);
-          localStorage.setItem("pulse_leads", JSON.stringify(rows));
-        }
-      });
+      const fetchLeads = async () => {
+        try {
+          const rows = currentUser.id === "admin"
+            ? await syncAllLeadsDown()
+            : await syncLeadsDown(currentUser.id);
+          if (rows && rows.length > 0) {
+            setLeads(rows);
+            localStorage.setItem("pulse_leads", JSON.stringify(rows));
+          }
+          // Clear notification flag
+          try { localStorage.removeItem(`pulse_new_leads_${currentUser.id}`); } catch {}
+        } catch {}
+      };
+      fetchLeads();
     }
   }, [currentUser]);
 
@@ -1086,22 +1123,29 @@ export default function App() {
   }
 
   async function addLead(lead) {
-    // Normalize assigned_to to rep name (lowercase) so filter works cross-device
     const assignedName = lead.assigned_to_name || lead.assigned_to || currentUser?.name || "";
+    const assignedId   = assignedName.toLowerCase();
     const newLead = {
       id: `lead_${Date.now()}`,
       ...lead,
-      assigned_to:      assignedName.toLowerCase(),
+      assigned_to:      assignedId,
       assigned_to_name: assignedName,
       status: "open",
-      created_by: currentUser?.id || "",
-      created_by_name: currentUser?.name || "",
-      created_at: new Date().toISOString(),
+      created_by:       currentUser?.id || "",
+      created_by_name:  currentUser?.name || "",
+      created_at:       new Date().toISOString(),
     };
     const updated = [newLead, ...leads];
     saveLeads(updated);
-    logActivity("new_lead", `${lead.name} — assigned to ${lead.assigned_to_name}`);
+    logActivity("new_lead", `${lead.name} — assigned to ${assignedName}`);
+    // Push to Supabase — rep will pull this on next load/refresh
     await syncLeadUp(newLead);
+    // Write a local notification flag so rep sees it immediately if on same device
+    try {
+      const notifyKey = `pulse_new_leads_${assignedId}`;
+      const existing  = JSON.parse(localStorage.getItem(notifyKey) || "[]");
+      localStorage.setItem(notifyKey, JSON.stringify([...existing, newLead.id]));
+    } catch {}
     return newLead;
   }
 
@@ -3104,6 +3148,28 @@ function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmi
 
   return (
     <div>
+      {/* Sync button for reps */}
+      {!isAdmin && (
+        <div style={{ marginBottom:"0.6rem", display:"flex", justifyContent:"flex-end" }}>
+          <button onClick={async () => {
+            const uid = window.__pulseUser?.id;
+            if (!uid) return;
+            const rows = await syncLeadsDown(uid);
+            if (rows && rows.length > 0) {
+              try { localStorage.setItem("pulse_leads", JSON.stringify(rows)); } catch {}
+              // Force parent re-render by triggering a storage event
+              window.dispatchEvent(new Event("storage"));
+              alert(`✓ Synced ${rows.length} leads from cloud`);
+            } else {
+              alert("No leads found assigned to you yet.");
+            }
+          }} style={{ fontSize:"0.68rem", color:"#059669", background:"#F0FDF4",
+            border:"1px solid #BBF7D0", borderRadius:6, padding:"0.3rem 0.75rem", cursor:"pointer" }}>
+            ↺ Sync leads from cloud
+          </button>
+        </div>
+      )}
+
       {/* KPI strip */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"0.6rem", marginBottom:"1rem" }}>
         {[
