@@ -1146,6 +1146,7 @@ export default function App() {
   }
   const [uploadDates, setUploadDates] = useState({}); // {slotId: ISO timestamp}
   const [dismissedWarning, setDismissedWarning] = useState(false);
+  const [newWeeksDetected, setNewWeeksDetected] = useState([]);
 
   // Weekly upload slots that must be refreshed every week
   const WEEKLY_SLOTS = ["weekComp", "ar", "sales"];
@@ -1235,16 +1236,55 @@ export default function App() {
     let parsed;
     if (slotId === "weekComp") {
       parsed = parseWeekCompWorkbook(wb);
-      // Merge with seed data — keep seed action plan if upload has none, keep seed weeks if upload has none
       setFileData(prev => {
         const existing = prev.weekComp || SEED_WEEK_COMP;
-        const merged = {
-          weeks:      (parsed.weeks      && parsed.weeks.length > 0)      ? parsed.weeks      : existing.weeks,
-          depts:      (parsed.depts      && parsed.depts.length > 0)      ? parsed.depts      : existing.depts,
-          actionPlan: (parsed.actionPlan && parsed.actionPlan.length > 0) ? parsed.actionPlan : existing.actionPlan,
-          customers:  (parsed.customers  && parsed.customers.length > 0)  ? parsed.customers  : existing.customers,
+
+        // ── CUMULATIVE WEEK MERGE ──────────────────────────────────────────
+        // Merge weeks: keep all existing weeks, add/update new ones from upload
+        let mergedWeeks = [...(existing.weeks || [])];
+        if (parsed.weeks && parsed.weeks.length > 0) {
+          parsed.weeks.forEach(newWeek => {
+            const idx = mergedWeeks.findIndex(w => w.week === newWeek.week);
+            if (idx >= 0) {
+              mergedWeeks[idx] = newWeek; // update existing week
+            } else {
+              mergedWeeks.push(newWeek);  // add new week
+            }
+          });
+          mergedWeeks.sort((a,b) => a.week - b.week);
+        }
+
+        // ── CUMULATIVE ACTION PLAN MERGE ───────────────────────────────────
+        // Update existing customers with new YTD figures, add new customers
+        let mergedAP = [...(existing.actionPlan || [])];
+        if (parsed.actionPlan && parsed.actionPlan.length > 0) {
+          parsed.actionPlan.forEach(newAP => {
+            const idx = mergedAP.findIndex(a => String(a.custNum) === String(newAP.custNum));
+            if (idx >= 0) {
+              mergedAP[idx] = newAP; // update with latest figures
+            } else {
+              mergedAP.push(newAP);  // add new customer
+            }
+          });
+        }
+
+        // ── DETECT NEW WEEKS ───────────────────────────────────────────────
+        const existingWeekNums = new Set((existing.weeks||[]).map(w=>w.week));
+        const newWeekNums = (parsed.weeks||[]).filter(w=>!existingWeekNums.has(w.week)).map(w=>w.week);
+        if (newWeekNums.length > 0) {
+          // Store new week numbers for AI analysis trigger
+          localStorage.setItem("pulse_new_weeks", JSON.stringify(newWeekNums));
+        }
+
+        return {
+          ...prev,
+          weekComp: {
+            weeks:      mergedWeeks,
+            depts:      (parsed.depts && parsed.depts.length > 0) ? parsed.depts : existing.depts,
+            actionPlan: mergedAP,
+            customers:  (parsed.customers && parsed.customers.length > 0) ? parsed.customers : existing.customers,
+          }
         };
-        return { ...prev, weekComp: merged };
       });
     } else if (slotId === "sales") {
       // Auto-detect year columns (e.g. "2025 Sales", "2026 Sales", "2027 Sales")
@@ -1309,8 +1349,20 @@ export default function App() {
       parsed = readSheet(wb, sheetName);
       setFileData(prev => ({ ...prev, [slotId]: parsed }));
     }
-    if (slotId !== "sales") setNotice(`✓ ${FILE_SLOTS.find(s=>s.id===slotId)?.label} loaded`);
-    setTimeout(() => setNotice(""), 4000);
+    if (slotId === "weekComp") {
+      // Check if new weeks were detected
+      const newWeeks = JSON.parse(localStorage.getItem("pulse_new_weeks") || "[]");
+      if (newWeeks.length > 0) {
+        setNotice(`✓ Week Comp loaded — ${newWeeks.length} new week${newWeeks.length>1?"s":""} added (W${newWeeks.join(", W")})`);
+        localStorage.removeItem("pulse_new_weeks");
+        setNewWeeksDetected(newWeeks);
+      } else {
+        setNotice("✓ Week Comp loaded — existing data updated");
+      }
+    } else if (slotId !== "sales") {
+      setNotice(`✓ ${FILE_SLOTS.find(s=>s.id===slotId)?.label} loaded`);
+    }
+    setTimeout(() => setNotice(""), 5000);
     // Record upload timestamp
     const newDates = { ...uploadDates, [slotId]: new Date().toISOString() };
     setUploadDates(newDates);
@@ -1460,6 +1512,13 @@ export default function App() {
 
       <div style={S.main}>
         {tab === "setup"    && <FileSetup fileData={fileData} onUpload={handleUpload} onClear={clearAll} />}
+        {tab === "overview" && newWeeksDetected.length > 0 && (
+          <NewWeekBanner
+            newWeeks={newWeeksDetected}
+            weekComp={fileData.weekComp || SEED_WEEK_COMP}
+            onDismiss={() => setNewWeeksDetected([])}
+          />
+        )}
         {tab === "overview" && <OverviewTab weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} />}
         {["tiffany","larry","austin","house"].includes(tab) && (
           <RepTab repName={tab.charAt(0).toUpperCase()+tab.slice(1)} weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} inactiveCustomers={inactiveCustomers} leads={leads} onAddLead={addLead} onDeleteLead={deleteLead} currentUser={currentUser} onLogActivity={logActivity} />
@@ -1535,6 +1594,142 @@ function FileSetup({ fileData, onUpload, onClear }) {
 }
 
 // ── OverviewTab ───────────────────────────────────────────────────────────────
+
+// ── New Week Banner + AI Analysis ────────────────────────────────────────────
+function NewWeekBanner({ newWeeks, weekComp, onDismiss }) {
+  const [analysis, setAnalysis] = useState(null);
+  const [loading, setLoading]   = useState(false);
+
+  async function generateAnalysis() {
+    setLoading(true);
+    const weeks = weekComp.weeks || [];
+    const newWkData = weeks.filter(w => newWeeks.includes(w.week));
+    const prevWks   = weeks.filter(w => !newWeeks.includes(w.week)).slice(-4);
+
+    // Build context
+    const newWkLines = newWkData.map(w =>
+      `W${w.week}: $${w.sales2026.toLocaleString()} 2026 vs $${w.sales2025.toLocaleString()} 2025 (${w.changePct>=0?"+":""}${(w.changePct*100).toFixed(1)}%)`
+    ).join("\n");
+
+    const prevWkLines = prevWks.map(w =>
+      `W${w.week}: $${w.sales2026.toLocaleString()} (${w.changePct>=0?"+":""}${(w.changePct*100).toFixed(1)}%)`
+    ).join("\n");
+
+    const ytd26 = weeks.reduce((s,w)=>s+w.sales2026,0);
+    const ytd25 = weeks.reduce((s,w)=>s+w.sales2025,0);
+
+    // Top movers this week
+    const ap = weekComp.actionPlan || [];
+    const topGain = [...ap].sort((a,b)=>b.change-a.change).slice(0,5)
+      .map(a=>`${a.customer} (${a.salesman}): +$${a.change.toLocaleString()}`).join("\n");
+    const topDecline = [...ap].filter(a=>a.change<0).sort((a,b)=>a.change-b.change).slice(0,5)
+      .map(a=>`${a.customer} (${a.salesman}): $${a.change.toLocaleString()}`).join("\n");
+
+    // Dept analysis
+    const depts = (weekComp.depts||[]).sort((a,b)=>b.sales-a.sales).slice(0,5)
+      .map(d=>`${d.dept}: $${d.sales.toLocaleString()} (${d.assessment})`).join("\n");
+
+    const prompt = `You are a sales manager at a tire and ag distributor analyzing a new week's performance.
+
+NEW WEEK${newWeeks.length>1?"S":""}: W${newWeeks.join(", W")}
+${newWkLines}
+
+PRIOR 4 WEEKS TREND:
+${prevWkLines}
+
+YTD 2026: $${ytd26.toLocaleString()} vs 2025: $${ytd25.toLocaleString()} (${ytd25>0?(((ytd26-ytd25)/ytd25)*100).toFixed(1):"0"}% YTD)
+
+TOP GROWING ACCOUNTS:
+${topGain}
+
+DECLINING ACCOUNTS:
+${topDecline}
+
+TOP DEPARTMENTS (YTD):
+${depts}
+
+Provide a concise weekly performance summary with:
+1. Quick headline on this week's performance vs prior trend
+2. Top 2-3 accounts to prioritize follow-up based on their trajectory
+3. Any departments or patterns worth noting
+4. One specific action recommendation for the team this week
+
+Keep it punchy — 4 short paragraphs max. Write for a Monday morning sales meeting.`;
+
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version":"2023-06-01",
+          "anthropic-dangerous-direct-browser-access":"true",
+        },
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:800,
+          messages:[{role:"user",content:prompt}] })
+      });
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const data = await res.json();
+      setAnalysis(data.content?.[0]?.text || "No response.");
+    } catch(e) {
+      setAnalysis(`Error: ${e.message}`);
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ margin:"0.75rem 1.5rem 0", padding:"0.85rem 1rem",
+      background:"linear-gradient(135deg,#F0FDF4,#EFF6FF)",
+      border:"2px solid #86EFAC", borderRadius:10 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
+        <div>
+          <span style={{ fontSize:"0.85rem", fontWeight:800, color:"#059669" }}>
+            🆕 New week{newWeeks.length>1?"s":""} uploaded — W{newWeeks.join(", W")}
+          </span>
+          <span style={{ fontSize:"0.72rem", color:MUTED, marginLeft:10 }}>
+            Data added to existing history — nothing replaced
+          </span>
+        </div>
+        <div style={{ display:"flex", gap:6 }}>
+          {!analysis && !loading && (
+            <button onClick={generateAnalysis}
+              style={{ fontSize:"0.72rem", fontWeight:700, color:"#fff", background:"#059669",
+                border:"none", borderRadius:6, padding:"0.35rem 0.85rem", cursor:"pointer" }}>
+              ◈ Analyze New Week
+            </button>
+          )}
+          <button onClick={onDismiss}
+            style={{ fontSize:"0.68rem", color:MUTED, background:"none",
+              border:`1px solid ${BORDER}`, borderRadius:6, padding:"0.3rem 0.6rem", cursor:"pointer" }}>
+            × Dismiss
+          </button>
+        </div>
+      </div>
+      {loading && (
+        <div style={{ marginTop:"0.75rem", fontSize:"0.75rem", color:MUTED, textAlign:"center" }}>
+          ◈ Analyzing W{newWeeks.join(", W")} performance…
+        </div>
+      )}
+      {analysis && !loading && (
+        <div style={{ marginTop:"0.85rem", paddingTop:"0.85rem", borderTop:`1px solid #BBF7D0` }}>
+          <div style={{ fontSize:"0.7rem", fontWeight:700, color:"#059669", textTransform:"uppercase",
+            letterSpacing:"0.1em", marginBottom:"0.5rem" }}>
+            📊 Week Analysis — W{newWeeks.join(", W")}
+          </div>
+          <div style={{ fontSize:"0.78rem", color:TEXT, lineHeight:1.85, whiteSpace:"pre-wrap" }}>
+            {analysis}
+          </div>
+          <button onClick={generateAnalysis}
+            style={{ marginTop:"0.6rem", fontSize:"0.65rem", color:MUTED, background:"none",
+              border:`1px solid ${BORDER}`, borderRadius:4, padding:"2px 8px", cursor:"pointer" }}>
+            ↺ Regenerate
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OverviewTab({ weekComp, onAskAI, onCustomerClick, customers }) {
   const [subTab, setSubTab] = useState("weekcomp");
   const branchData = SEED_BRANCH_DATA;
