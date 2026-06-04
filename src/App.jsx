@@ -1126,29 +1126,30 @@ export default function App() {
   const [inactiveCustomers, setInactiveCustomers] = useState({}); // custNum → {reason, date, by}
   const [leads, setLeads] = useState([]); // array of lead objects
 
-  // Load leads from storage
+  // Load leads from storage + auto-sync
   useEffect(() => {
     // Load from localStorage first (instant)
     try {
       const saved = localStorage.getItem("pulse_leads");
       if (saved) setLeads(JSON.parse(saved));
     } catch {}
-    // Always sync from Supabase after login to get leads assigned by admin
+    // Always sync from Supabase after login
     if (currentUser) {
-      const fetchLeads = async () => {
-        try {
-          const rows = currentUser.id === "admin"
-            ? await syncAllLeadsDown()
-            : await syncLeadsDown(currentUser.id);
-          if (rows && rows.length > 0) {
-            setLeads(rows);
-            localStorage.setItem("pulse_leads", JSON.stringify(rows));
-          }
-          // Clear notification flag
-          try { localStorage.removeItem(`pulse_new_leads_${currentUser.id}`); } catch {}
-        } catch {}
+      refreshLeads(false);
+
+      // Auto-refresh every 5 minutes
+      const interval = setInterval(() => refreshLeads(false), 5 * 60 * 1000);
+
+      // Also refresh when user switches back to this tab
+      const handleVisibility = () => {
+        if (document.visibilityState === "visible") refreshLeads(false);
       };
-      fetchLeads();
+      document.addEventListener("visibilitychange", handleVisibility);
+
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener("visibilitychange", handleVisibility);
+      };
     }
   }, [currentUser]);
 
@@ -1830,6 +1831,297 @@ Keep it punchy — 4 short paragraphs max. Write for a Monday morning sales meet
   );
 }
 
+
+// ── MSR — Monday Sales Review Tab ─────────────────────────────────────────────
+const SEED_MSR = [
+  {
+    id: "msr_20260601",
+    date: "2026-06-02",
+    weekNum: 22,
+    title: "W22 Review — June 2, 2026",
+    headline: "W22 down 8.3% on units but GP% trending in the right direction after price increase. YTD still strong at +19.1% units, +11% sales.",
+    sections: [
+      {
+        label: "📊 W22 Performance",
+        color: "#DC2626",
+        bullets: [
+          "Units: 11,079 vs 12,076 PY — down 8.3% (997 units short)",
+          "Revenue: $1.487M, down 7.2% ($114K)",
+          "GP: $207K, down 21.8% ($58K) — BUT GP% at 13.9%, trending UP",
+          "GP% progression post-price increase: 13.27 → 13.3 → 13.53 → 13.9% — target is 15-16%"
+        ]
+      },
+      {
+        label: "🏆 Departments",
+        color: "#059669",
+        bullets: [
+          "Industrial tires: TOP performer for the week — first time ever",
+          "Radio/light truck: BOTTOM — down 1,259 units (Venom, Predator, Nexon, Transamerica brands phased out)",
+          "Truck tires (TBR): down 447 units — Byron down 254, Tifton and Statesboro also off",
+          "Passenger: high volume but NOT profitable growth — focus elsewhere"
+        ]
+      },
+      {
+        label: "📅 YTD & Month-to-Month",
+        color: "#0891B2",
+        bullets: [
+          "YTD through May: units +19.1%, sales +11%, +$3.9M, +50K units vs 2025",
+          "May month-over-month: units -998 (-2%), sales -$400K (-5%)",
+          "Still tracking well above 8% growth budget for 2026",
+          "June focus: don't have a down month — containers in the pipe should help"
+        ]
+      },
+      {
+        label: "📦 Inventory",
+        color: "#7C3AED",
+        bullets: [
+          "Current inventory: $21.1M (flat vs last week)",
+          "3-4 direct containers expected to land this week — approx 1,000 TBR units",
+          "TBR Town warehouse (Store 4): landlord wants to lease it — exit ASAP",
+          "ACTION: Move TBR Town inventory to Statesboro and other branches immediately — creating out-of-stock illusion",
+          "Toyo backorder issues — Scott working on ETAs, limited info from Toyo",
+          "Blackhawk BFR-57: potential fill-in option being sourced, answer by tomorrow"
+        ]
+      },
+      {
+        label: "💰 AR Collections",
+        color: "#D97706",
+        bullets: [
+          "New month — hammer AR hard, prime collection time",
+          "Several accounts rolled past due from May",
+          "3-4 accounts turned over to attorneys — complaints filed in court today",
+          "Chris posting weekend payments this morning before running statements — updated AR coming"
+        ]
+      },
+      {
+        label: "🎯 Promotions",
+        color: "#0891B2",
+        bullets: [
+          "Dunlop/Owala promo: 1 black laser-engraved Owala thermos per 4 Dunlops — first 2 weeks of June. Any dealer eligible. Flyer going on Tirelink today.",
+          "Tag Team program: coming out shortly",
+          "Americus May recon ended — Economy Tire big winner, Screens Tire & Muffler also in the money",
+          "Falken Q2: only 1 DNR in the money — push hard through June",
+          "Toyo Q2: 9 dealers in the money — one more month to close out"
+        ]
+      },
+      {
+        label: "🔑 Key Directives",
+        color: "#1E5FCC",
+        bullets: [
+          "STOP THE MARGIN BLEED — volume does not fix margin. Chase GP, not units.",
+          "TBR and light truck are the two big segment focuses",
+          "Passenger segment growing but not profitable — don't chase that volume",
+          "If cutting price aggressively, it must be for a new market or a down market — not existing well-serviced routes",
+          "Our service is worth more than cutting 2 points off a tire to close a transaction",
+          "Price levels review this month — adjusting across 3 accounts (Tifton)"
+        ]
+      }
+    ],
+    tiftonNotes: "JMZ and Del Toro called out as radio/LT accounts to watch. Eric's Tifton and Eric's Sylvester discussed for retention. Price level adjustments planned for 3 accounts — moving away from aggressive pricing on well-covered routes. Still no access to Dynamics CRM.",
+    createdBy: "AI Summary"
+  }
+];
+
+function MSRTab() {
+  const MSR_KEY = "pulse_msr_meetings";
+  const [meetings, setMeetings] = useState(() => {
+    try {
+      const saved = localStorage.getItem(MSR_KEY);
+      return saved ? JSON.parse(saved) : SEED_MSR;
+    } catch { return SEED_MSR; }
+  });
+  const [selected, setSelected] = useState(meetings[0]?.id || null);
+  const [showUpload, setShowUpload] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [meetingDate, setMeetingDate] = useState(new Date().toISOString().slice(0,10));
+  const [generating, setGenerating] = useState(false);
+
+  function saveMeetings(updated) {
+    setMeetings(updated);
+    try { localStorage.setItem(MSR_KEY, JSON.stringify(updated)); } catch {}
+  }
+
+  const current = meetings.find(m => m.id === selected);
+
+  async function generateSummary() {
+    if (!transcript.trim()) return;
+    setGenerating(true);
+    const prompt = `You are analyzing a tire distribution company's Monday Sales Review meeting transcript.
+
+TRANSCRIPT:
+${transcript.slice(0, 12000)}
+
+Generate a structured meeting summary as JSON only (no markdown):
+{
+  "headline": "One sentence capturing the most important takeaway",
+  "weekNum": <week number if mentioned, or null>,
+  "sections": [
+    {
+      "label": "emoji + Section Title",
+      "color": "#hexcolor",
+      "bullets": ["specific bullet point", "another point"]
+    }
+  ],
+  "tiftonNotes": "Any Tifton-specific items, action items, or callouts from the transcript",
+  "createdBy": "AI Summary"
+}
+
+Use these section labels as relevant: 📊 Performance, 🏆 Departments, 📅 YTD, 📦 Inventory, 💰 AR Collections, 🎯 Promotions, 🔑 Key Directives, 👥 Rep Updates.
+Colors: use #DC2626 red for down/bad, #059669 green for up/good, #0891B2 teal for info, #D97706 amber for caution, #7C3AED purple for inventory, #1E5FCC blue for strategy.
+Be specific — use actual numbers, names, and account names from the transcript.`;
+
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:2000,
+          messages:[{role:"user",content:prompt}] })
+      });
+      const data = await res.json();
+      const raw = data.content?.[0]?.text || "{}";
+      const parsed = JSON.parse(raw.replace(/```json|```/g,"").trim());
+      const newMeeting = {
+        id:       `msr_${Date.now()}`,
+        date:     meetingDate,
+        weekNum:  parsed.weekNum || null,
+        title:    `W${parsed.weekNum || "?"} Review — ${new Date(meetingDate).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}`,
+        headline: parsed.headline || "",
+        sections: parsed.sections || [],
+        tiftonNotes: parsed.tiftonNotes || "",
+        createdBy: "AI Summary",
+      };
+      const updated = [newMeeting, ...meetings];
+      saveMeetings(updated);
+      setSelected(newMeeting.id);
+      setShowUpload(false);
+      setTranscript("");
+    } catch(e) {
+      alert(`Summary failed: ${e.message}`);
+    }
+    setGenerating(false);
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.85rem", flexWrap:"wrap", gap:8 }}>
+        <div>
+          <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#1E5FCC" }}>📋 Monday Sales Review</div>
+          <div style={{ fontSize:"0.68rem", color:MUTED }}>{meetings.length} meeting{meetings.length!==1?"s":""} on record</div>
+        </div>
+        <button onClick={()=>setShowUpload(!showUpload)}
+          style={{ ...S.btn("#1E5FCC"), fontSize:"0.7rem", fontWeight:700 }}>
+          {showUpload ? "× Cancel" : "+ Add Meeting"}
+        </button>
+      </div>
+
+      {/* Upload form */}
+      {showUpload && (
+        <div style={{ ...S.card, border:"2px solid #1E5FCC", marginBottom:"1rem" }}>
+          <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#1E5FCC", marginBottom:"0.75rem" }}>◈ Add Meeting Summary</div>
+          <div style={{ marginBottom:"0.6rem" }}>
+            <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Meeting Date</div>
+            <input type="date" value={meetingDate} onChange={e=>setMeetingDate(e.target.value)}
+              style={{ background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT, padding:"0.4rem 0.65rem", borderRadius:6, fontSize:"0.75rem" }} />
+          </div>
+          <div style={{ marginBottom:"0.75rem" }}>
+            <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Paste meeting transcript or notes</div>
+            <textarea value={transcript} onChange={e=>setTranscript(e.target.value)}
+              placeholder="Paste the full meeting transcript here. AI will extract key points, numbers, action items, and Tifton-specific notes..."
+              rows={8}
+              style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
+                padding:"0.5rem 0.75rem", borderRadius:6, fontSize:"0.75rem", resize:"vertical",
+                outline:"none", boxSizing:"border-box", lineHeight:1.7 }}
+              onFocus={e=>e.target.style.borderColor="#1E5FCC"}
+              onBlur={e=>e.target.style.borderColor=BORDER}
+            />
+            <div style={{ fontSize:"0.62rem", color:MUTED, marginTop:3 }}>{transcript.length.toLocaleString()} characters</div>
+          </div>
+          <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+            <button onClick={()=>{setShowUpload(false);setTranscript("");}} style={{ ...S.btn(MUTED) }}>Cancel</button>
+            <button onClick={generateSummary} disabled={!transcript.trim()||generating}
+              style={{ ...S.btn("#1E5FCC"), background:"#1E5FCC", color:"#fff",
+                opacity:!transcript.trim()||generating?0.5:1 }}>
+              {generating ? "◈ Analyzing…" : "◈ Generate Summary"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Meeting selector */}
+      {meetings.length > 1 && (
+        <div style={{ display:"flex", gap:5, marginBottom:"0.85rem", flexWrap:"wrap" }}>
+          {meetings.map(m => (
+            <button key={m.id} onClick={()=>setSelected(m.id)}
+              style={{ fontSize:"0.68rem", fontWeight:selected===m.id?700:400,
+                color:selected===m.id?"#fff":"#1E5FCC",
+                background:selected===m.id?"#1E5FCC":"#EFF6FF",
+                border:`1px solid ${selected===m.id?"#1E5FCC":"#BFDBFE"}`,
+                borderRadius:6, padding:"0.25rem 0.7rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+              {m.title}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Meeting content */}
+      {current && (
+        <div>
+          {/* Headline */}
+          <div style={{ padding:"0.75rem 1rem", background:"linear-gradient(135deg,#EFF6FF,#F0FDF4)",
+            border:"1px solid #BFDBFE", borderRadius:8, marginBottom:"1rem" }}>
+            <div style={{ fontSize:"0.65rem", color:"#1E5FCC", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4 }}>
+              {current.title} · {new Date(current.date).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}
+            </div>
+            <div style={{ fontSize:"0.82rem", fontWeight:700, color:TEXT, lineHeight:1.6 }}>{current.headline}</div>
+          </div>
+
+          {/* Sections */}
+          <div style={{ display:"flex", flexDirection:"column", gap:"0.75rem", marginBottom:"1rem" }}>
+            {(current.sections||[]).map((sec, i) => (
+              <div key={i} style={{ ...S.card, borderLeft:`4px solid ${sec.color}`, padding:"0.75rem 1rem" }}>
+                <div style={{ fontSize:"0.72rem", fontWeight:700, color:sec.color,
+                  textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"0.5rem" }}>
+                  {sec.label}
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+                  {(sec.bullets||[]).map((b, j) => (
+                    <div key={j} style={{ display:"flex", gap:8, fontSize:"0.76rem", color:TEXT, lineHeight:1.65 }}>
+                      <span style={{ color:sec.color, flexShrink:0, marginTop:2 }}>▸</span>
+                      <span>{b}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tifton-specific notes */}
+          {current.tiftonNotes && (
+            <div style={{ ...S.card, background:"#FFFBEB", borderLeft:`4px solid ${AMBER}`, padding:"0.75rem 1rem" }}>
+              <div style={{ fontSize:"0.7rem", fontWeight:700, color:AMBER,
+                textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"0.5rem" }}>
+                📍 Tifton Notes
+              </div>
+              <div style={{ fontSize:"0.76rem", color:TEXT, lineHeight:1.7 }}>{current.tiftonNotes}</div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div style={{ fontSize:"0.62rem", color:MUTED, marginTop:"0.75rem", textAlign:"right" }}>
+            {current.createdBy} · {new Date(current.date).toLocaleDateString()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OverviewTab({ weekComp, onAskAI, onCustomerClick, customers }) {
   const [subTab, setSubTab] = useState("weekcomp");
   const branchData = SEED_BRANCH_DATA;
@@ -1873,6 +2165,7 @@ function OverviewTab({ weekComp, onAskAI, onCustomerClick, customers }) {
         <button style={S.subBtn(subTab==="weekcomp")} onClick={() => setSubTab("weekcomp")}>📅 Week by Week</button>
         <button style={S.subBtn(subTab==="depts")} onClick={() => setSubTab("depts")}>📦 Departments</button>
         <button style={S.subBtn(subTab==="action",   RED)}    onClick={() => setSubTab("action")}>🎯 Action Plan</button>
+        <button style={S.subBtn(subTab==="msr",    "#1E5FCC")} onClick={() => setSubTab("msr")}>📋 MSR</button>
         <button style={S.subBtn(subTab==="trend",    TEAL)}   onClick={() => setSubTab("trend")}>📈 Trend Chart</button>
         <button style={S.subBtn(subTab==="branches", AMBER)}  onClick={() => setSubTab("branches")}>🏢 Branches</button>
         <button style={S.subBtn(subTab==="qtd",      "#0891B2")} onClick={() => setSubTab("qtd")}>📅 QTD</button>
