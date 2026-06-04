@@ -1003,8 +1003,15 @@ Keep it concise and actionable, written for a sales manager.` }]
       {/* Leads Management */}
       <div style={{ ...S.card, marginBottom:"1rem" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.75rem" }}>
-          <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#059669", textTransform:"uppercase", letterSpacing:"0.1em" }}>
-            🎯 Leads <span style={{ color:MUTED, fontWeight:400 }}>({(leads||[]).filter(l=>l.status==="open").length} open)</span>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#059669", textTransform:"uppercase", letterSpacing:"0.1em" }}>
+              🎯 Leads <span style={{ color:MUTED, fontWeight:400 }}>({allLeads.filter(l=>l.status==="open").length} open · {allLeads.length} total)</span>
+            </div>
+            <button onClick={()=>syncAllLeadsDown().then(rows=>{if(rows&&rows.length>0)setAllLeads(rows);})}
+              style={{ fontSize:"0.65rem", color:"#059669", background:"#F0FDF4", border:"1px solid #BBF7D0",
+                borderRadius:4, padding:"0.2rem 0.6rem", cursor:"pointer" }}>
+              ↺ Refresh
+            </button>
           </div>
         </div>
         <LeadsTab leads={allLeads} repName="Admin" onAddLead={onAddLead} onDeleteLead={onDeleteLead} currentUser={currentUser} isAdmin={true} allReps={["Tiffany","Larry","Austin"]} convertLead={convertLead} />
@@ -1120,6 +1127,24 @@ export default function App() {
   function saveLeads(updated) {
     setLeads(updated);
     localStorage.setItem("pulse_leads", JSON.stringify(updated));
+  }
+
+  async function refreshLeads(showAlert = false) {
+    if (!currentUser) return;
+    try {
+      const rows = currentUser.id === "admin"
+        ? await syncAllLeadsDown()
+        : await syncLeadsDown(currentUser.id);
+      if (rows && rows.length > 0) {
+        setLeads(rows);
+        localStorage.setItem("pulse_leads", JSON.stringify(rows));
+        if (showAlert) alert(`✓ Synced ${rows.filter(l=>l.status==="open").length} open lead${rows.filter(l=>l.status==="open").length!==1?"s":""} from cloud`);
+      } else {
+        if (showAlert) alert("No leads found assigned to you yet — check with your manager.");
+      }
+    } catch(e) {
+      if (showAlert) alert(`Sync failed: ${e.message}`);
+    }
   }
 
   async function addLead(lead) {
@@ -1565,7 +1590,7 @@ export default function App() {
         )}
         {tab === "overview" && <OverviewTab weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} />}
         {["tiffany","larry","austin","house"].includes(tab) && (
-          <RepTab repName={tab.charAt(0).toUpperCase()+tab.slice(1)} weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} inactiveCustomers={inactiveCustomers} leads={leads} onAddLead={addLead} onDeleteLead={deleteLead} currentUser={currentUser} onLogActivity={logActivity} />
+          <RepTab repName={tab.charAt(0).toUpperCase()+tab.slice(1)} weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} inactiveCustomers={inactiveCustomers} leads={leads} onAddLead={addLead} onDeleteLead={deleteLead} currentUser={currentUser} onLogActivity={logActivity} onRefreshLeads={refreshLeads} />
         )}
         {tab === "ai" && <AITab weekComp={weekComp} initialPrompt={aiPrompt} onClearPrompt={() => setAiPrompt("")} />}
         {tab === "map" && <MapTab customers={fileData.customers || SEED_CUSTOMERS} weekComp={weekComp} />}
@@ -2117,7 +2142,7 @@ function TrendView({ weeks }) {
 }
 
 // ── Rep Tab ───────────────────────────────────────────────────────────────────
-function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inactiveCustomers, leads, onAddLead, onDeleteLead, currentUser, onLogActivity }) {
+function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inactiveCustomers, leads, onAddLead, onDeleteLead, currentUser, onLogActivity, onRefreshLeads }) {
   const color = REP_COLORS[repName] || AMBER;
   const [cityFilter, setCityFilter] = useState("All");
   const [showShared, setShowShared] = useState(true);
@@ -2273,7 +2298,7 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
         <RepCallLog repName={repName} actionPlan={actionPlan} currentUser={currentUser} onLogActivity={onLogActivity} />
       )}
       {repSubTab === "leads" && (
-        <LeadsTab leads={repLeads} repName={repName} onAddLead={onAddLead} onDeleteLead={onDeleteLead} currentUser={currentUser} isAdmin={false} allReps={["Tiffany","Larry","Austin"]} />
+        <LeadsTab leads={repLeads} repName={repName} onAddLead={onAddLead} onDeleteLead={onDeleteLead} currentUser={currentUser} isAdmin={false} allReps={["Tiffany","Larry","Austin"]} onRefreshLeads={onRefreshLeads} />
       )}
       {repSubTab === "statesboro" && isAustin && (
         <StatesboroTab />
@@ -3116,7 +3141,7 @@ function EntryCard({ entry: e, onDelete, formatForCRM }) {
 }
 
 // ── Leads Tab ─────────────────────────────────────────────────────────────────
-function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmin, allReps, convertLead }) {
+function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmin, allReps, convertLead, onRefreshLeads }) {
   const [showForm, setShowForm]   = useState(false);
   const [filter, setFilter]       = useState("open");
   const [form, setForm]           = useState({
@@ -3149,23 +3174,13 @@ function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmi
   return (
     <div>
       {/* Sync button for reps */}
-      {!isAdmin && (
-        <div style={{ marginBottom:"0.6rem", display:"flex", justifyContent:"flex-end" }}>
-          <button onClick={async () => {
-            const uid = window.__pulseUser?.id;
-            if (!uid) return;
-            const rows = await syncLeadsDown(uid);
-            if (rows && rows.length > 0) {
-              try { localStorage.setItem("pulse_leads", JSON.stringify(rows)); } catch {}
-              // Force parent re-render by triggering a storage event
-              window.dispatchEvent(new Event("storage"));
-              alert(`✓ Synced ${rows.length} leads from cloud`);
-            } else {
-              alert("No leads found assigned to you yet.");
-            }
-          }} style={{ fontSize:"0.68rem", color:"#059669", background:"#F0FDF4",
-            border:"1px solid #BBF7D0", borderRadius:6, padding:"0.3rem 0.75rem", cursor:"pointer" }}>
-            ↺ Sync leads from cloud
+      {!isAdmin && onRefreshLeads && (
+        <div style={{ marginBottom:"0.6rem", display:"flex", justifyContent:"flex-end", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:"0.65rem", color:MUTED }}>Don't see a lead? Pull from cloud:</span>
+          <button onClick={() => onRefreshLeads(true)}
+            style={{ fontSize:"0.68rem", fontWeight:700, color:"#059669", background:"#F0FDF4",
+              border:"1px solid #BBF7D0", borderRadius:6, padding:"0.3rem 0.75rem", cursor:"pointer" }}>
+            ↺ Sync from cloud
           </button>
         </div>
       )}
