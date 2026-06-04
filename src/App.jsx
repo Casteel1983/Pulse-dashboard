@@ -2176,7 +2176,8 @@ function OverviewTab({ weekComp, onAskAI, onCustomerClick, customers }) {
       {subTab === "action"   && <ActionPlanView actionPlan={weekComp?.actionPlan || []} onCustomerClick={onCustomerClick} customers={customers} />}
       {subTab === "branches"  && <BranchesTab branchData={branchData} />}
       {subTab === "qtd"       && <QTDTab branchData={branchData} />}
-      {subTab === "trend"    && <TrendView weeks={weeks} />}
+      {subTab === "msr" && <MSRTab />}
+    {subTab === "trend"    && <TrendView weeks={weeks} />}
     </div>
   );
 }
