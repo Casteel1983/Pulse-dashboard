@@ -213,26 +213,36 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 async function sbFetch(path, method="GET", body=null) {
   try {
-    const opts = {
-      method,
-      headers: {
-        "apikey": SB_KEY,
-        "Authorization": `Bearer ${SB_KEY}`,
-        "Content-Type": "application/json",
-        "Prefer": method==="POST" ? "resolution=merge-duplicates,return=minimal" : "return=minimal",
-      },
+    const headers = {
+      "apikey": SB_KEY,
+      "Authorization": `Bearer ${SB_KEY}`,
+      "Content-Type": "application/json",
     };
+    // Only add Prefer header for writes — never for GET (it suppresses response body)
+    if (method === "POST")   headers["Prefer"] = "resolution=merge-duplicates,return=minimal";
+    if (method === "PATCH")  headers["Prefer"] = "return=minimal";
+    const opts = { method, headers };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(`${SB_URL}/rest/v1/${path}`, opts);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const err = await res.text();
+      console.warn(`[Supabase] ${method} ${path} → ${res.status}:`, err);
+      return null;
+    }
     const txt = await res.text();
     return txt ? JSON.parse(txt) : null;
-  } catch { return null; }
+  } catch(e) {
+    console.warn("[Supabase] fetch error:", e.message);
+    return null;
+  }
 }
 
 // Notes sync
 async function syncNotesUp(userId, custNum, notes) {
-  await sbFetch("rep_notes", "POST", { user_id:userId, cust_num:String(custNum), notes, updated_at:new Date().toISOString() });
+  // Use upsert with explicit on_conflict parameter
+  await sbFetch("rep_notes?on_conflict=user_id,cust_num", "POST", {
+    user_id: userId, cust_num: String(custNum), notes, updated_at: new Date().toISOString()
+  });
 }
 async function syncNotesDown(userId, custNum) {
   const rows = await sbFetch(`rep_notes?user_id=eq.${encodeURIComponent(userId)}&cust_num=eq.${encodeURIComponent(custNum)}&select=notes,updated_at`);
@@ -264,14 +274,14 @@ async function syncAllTodosDown(userId) {
 
 // Activity log sync — write to Supabase so admin sees all reps
 async function syncActivityUp(entry) {
-  await sbFetch("rep_activity", "POST", {
-    ts:        entry.ts,
-    user_name: entry.user,
-    user_id:   entry.userId,
-    action:    entry.action,
-    detail:    entry.detail,
-    updated_at: new Date().toISOString(),
-  });
+  // Silently skip if table doesn't exist yet
+  try {
+    await sbFetch("rep_activity", "POST", {
+      ts: entry.ts, user_name: entry.user, user_id: entry.userId,
+      action: entry.action, detail: entry.detail,
+      updated_at: new Date().toISOString(),
+    });
+  } catch {}
 }
 async function syncActivityDown() {
   const rows = await sbFetch("rep_activity?order=ts.desc&limit=500");
@@ -280,7 +290,23 @@ async function syncActivityDown() {
 
 // Leads sync
 async function syncLeadUp(lead) {
-  await sbFetch("rep_leads", "POST", { ...lead, updated_at: new Date().toISOString() });
+  // Only send columns that exist in rep_leads table
+  const row = {
+    id:               lead.id,
+    name:             lead.name,
+    city:             lead.city || null,
+    phone:            lead.phone || null,
+    business_type:    lead.businessType || lead.business_type || null,
+    notes:            lead.notes || null,
+    status:           lead.status || "open",
+    assigned_to:      lead.assigned_to || null,
+    assigned_to_name: lead.assigned_to_name || null,
+    created_by:       lead.created_by || null,
+    created_by_name:  lead.created_by_name || null,
+    created_at:       lead.created_at || new Date().toISOString(),
+    updated_at:       new Date().toISOString(),
+  };
+  await sbFetch("rep_leads?on_conflict=id", "POST", row);
 }
 async function syncLeadsDown(userId) {
   // Fetch leads assigned to this user (by name match — assigned_to stores lowercase name)
@@ -307,7 +333,9 @@ async function deleteLeadUp(leadId) {
 
 // AI plan sync
 async function syncAIPlanUp(userId, plan, generatedAt) {
-  await sbFetch("rep_ai_plans", "POST", { user_id:userId, plan, generated_at:generatedAt, updated_at:new Date().toISOString() });
+  await sbFetch("rep_ai_plans?on_conflict=user_id", "POST", {
+    user_id: userId, plan, generated_at: generatedAt, updated_at: new Date().toISOString()
+  });
 }
 async function syncAIPlanDown(userId) {
   const rows = await sbFetch(`rep_ai_plans?user_id=eq.${encodeURIComponent(userId)}&select=plan,generated_at`);
@@ -1493,7 +1521,10 @@ export default function App() {
                     // Write directly to activity log using logActivity
                     logActivity(type === "bug" ? "bug_report" : "suggestion", text.trim());
                     // Also sync to Supabase feedback table
-                    await sbFetch("rep_feedback", "POST", { ...entry, updated_at: new Date().toISOString() });
+                    await sbFetch("rep_feedback", "POST", {
+      ts: entry.ts, user: entry.user, userId: entry.userId,
+      type: entry.type, text: entry.text, updated_at: new Date().toISOString()
+    }).catch(()=>{});
                     alert("✓ Submitted! Your feedback has been logged for Admin review.");
                   } catch {}
                 }
@@ -3176,8 +3207,18 @@ function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmi
       {/* Sync button for reps */}
       {!isAdmin && onRefreshLeads && (
         <div style={{ marginBottom:"0.6rem", display:"flex", justifyContent:"flex-end", alignItems:"center", gap:8 }}>
-          <span style={{ fontSize:"0.65rem", color:MUTED }}>Don't see a lead? Pull from cloud:</span>
-          <button onClick={() => onRefreshLeads(true)}
+          <span style={{ fontSize:"0.65rem", color:MUTED }}>Don't see a lead?</span>
+          <button onClick={async () => {
+            const uid = window.__pulseUser?.id;
+            // Quick diagnostic — test Supabase connection first
+            const test = await sbFetch("rep_leads?limit=1");
+            if (test === null) {
+              alert("Cannot reach cloud database. Fix needed: In Supabase go to Authentication > URL Configuration and add https://casteel1983.github.io to Site URL and Redirect URLs.");
+              return;
+            }
+            // Connection works — do the real sync
+            onRefreshLeads(true);
+          }}
             style={{ fontSize:"0.68rem", fontWeight:700, color:"#059669", background:"#F0FDF4",
               border:"1px solid #BBF7D0", borderRadius:6, padding:"0.3rem 0.75rem", cursor:"pointer" }}>
             ↺ Sync from cloud
