@@ -27,10 +27,11 @@ const REPS   = ["Tiffany", "Larry", "Austin"];
 const REP_COLORS = { Tiffany: "#7C3AED", Larry: "#0891B2", Austin: "#D97706", House: "#059669", "Car Dealer": "#DC2626" };
 
 const FILE_SLOTS = [
-  { id: "sales",      label: "Sales Data",      desc: "Current & prior year sales — all years on one sheet. Re-upload weekly." },
+  { id: "master",     label: "⬡ Master Upload", desc: "Pulse_Master_Upload_Wxx.xlsx — uploads AR, CustomerComp, WTD, and all AD programs in one click", isMaster: true },
   { id: "customers",  label: "Customer List",   desc: "Account list with salesperson assignment" },
-  { id: "ar",         label: "AR / Aging",      desc: "Balances · 30/60/90/120+ day aging" },
-  { id: "weekComp",   label: "Week Comp",       desc: "Week-to-Week Customer Comp by Department" },
+  { id: "ar",         label: "AR / Aging",      desc: "Balances · 30/60/90/120+ day aging (use Master Upload instead)" },
+  { id: "weekComp",   label: "Week Comp",       desc: "Week-to-Week Customer Comp by Department (use Master Upload instead)" },
+  { id: "sales",      label: "Sales Data",      desc: "Current & prior year sales — all years on one sheet" },
 ];
 
 
@@ -340,6 +341,348 @@ async function syncAIPlanUp(userId, plan, generatedAt) {
 async function syncAIPlanDown(userId) {
   const rows = await sbFetch(`rep_ai_plans?user_id=eq.${encodeURIComponent(userId)}&select=plan,generated_at`);
   return rows?.[0] || null;
+}
+
+
+// ── Master Upload Workbook Parser ─────────────────────────────────────────────
+function isMasterWorkbook(wb) {
+  const sheets = wb.SheetNames;
+  return sheets.includes("AR") && sheets.includes("CustomerComp") && sheets.includes("WTD");
+}
+
+function getSheetRows(wb, name, startRow = 1) {
+  if (!wb.Sheets[name]) return [];
+  return XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: null })
+    .slice(startRow);
+}
+
+function isGAEPD(name) {
+  return /GA.EPD|GAEPA/i.test(String(name || ""));
+}
+
+// ── AR sheet ─────────────────────────────────────────────────────────────────
+function parseMasterAR(wb) {
+  const rows = getSheetRows(wb, "AR", 2); // skip title + note rows
+  const ar = [];
+  for (const row of rows) {
+    if (!row[1] || typeof row[1] !== "number") continue;
+    let lastPaid = "";
+    try {
+      const d = row[12] instanceof Date ? row[12] : new Date(row[12]);
+      if (!isNaN(d)) lastPaid = d.toISOString().slice(0, 10);
+    } catch {}
+    ar.push({
+      salesman:  String(row[0] || "").trim(),
+      custNum:   row[1],
+      shortName: String(row[2] || "").trim(),
+      name:      String(row[3] || "").trim(),
+      phone:     String(row[4] || "").trim(),
+      balance:   Number(row[5] || 0),
+      futDue:    Number(row[6] || 0),
+      curDue:    Number(row[7] || 0),
+      due1_30:   Number(row[8] || 0),
+      due31_60:  Number(row[9] || 0),
+      due61_90:  Number(row[10] || 0),
+      dueOver90: Number(row[11] || 0),
+      lastPaid,
+    });
+  }
+  return ar;
+}
+
+// ── CustomerComp sheet (HITS side-by-side 2025 A-I, 2026 K-S) ─────────────
+function parseMasterCustomerComp(wb) {
+  const rows = getSheetRows(wb, "CustomerComp", 4); // skip title/note/year-group/col-headers
+  // Build per-customer YTD aggregation
+  const by25 = {}, by26 = {};
+  for (const row of rows) {
+    const c25 = row[0], name25 = row[1], dept25 = row[2];
+    const amt25 = Number(row[4] || 0), gp25 = Number(row[5] || 0);
+    const c26 = row[10], name26 = row[11], dept26 = row[12];
+    const amt26 = Number(row[14] || 0), gp26 = Number(row[15] || 0);
+
+    if (c25 && typeof c25 === "number" && !isGAEPD(dept25)) {
+      const k = String(c25);
+      if (!by25[k]) by25[k] = { custNum: c25, customer: String(name25 || "").trim(), sales: 0, gp: 0, depts: {} };
+      by25[k].sales += amt25;
+      by25[k].gp += gp25;
+      if (dept25) by25[k].depts[dept25] = (by25[k].depts[dept25] || 0) + amt25;
+    }
+    if (c26 && typeof c26 === "number" && !isGAEPD(dept26)) {
+      const k = String(c26);
+      if (!by26[k]) by26[k] = { custNum: c26, customer: String(name26 || "").trim(), sales: 0, gp: 0, depts: {} };
+      by26[k].sales += amt26;
+      by26[k].gp += gp26;
+      if (dept26) by26[k].depts[dept26] = (by26[k].depts[dept26] || 0) + amt26;
+    }
+  }
+
+  // Build action plan entries
+  const allKeys = new Set([...Object.keys(by25), ...Object.keys(by26)]);
+  const actionPlan = [];
+  for (const k of allKeys) {
+    const d25 = by25[k] || { sales: 0, gp: 0, depts: {} };
+    const d26 = by26[k] || { sales: 0, gp: 0, depts: {} };
+    const rec  = by26[k] || by25[k];
+    const s25  = d25.sales, s26 = d26.sales;
+    const change = s26 - s25;
+    const gpPct  = s26 > 0 ? d26.gp / s26 : 0;
+
+    // Determine top dept 2026
+    const depts26 = d26.depts;
+    const topDept = Object.keys(depts26).sort((a, b) => depts26[b] - depts26[a])[0] || "";
+
+    // Most declined dept (in 2025 but less/missing in 2026)
+    let declinedDept = "";
+    let maxDecline = 0;
+    for (const dept of Object.keys(d25.depts)) {
+      const decline = (d25.depts[dept] || 0) - (d26.depts[dept] || 0);
+      if (decline > maxDecline) { maxDecline = decline; declinedDept = dept; }
+    }
+
+    const action = change > 500 ? "GROW" : change < -500 ? "LOST" : Math.abs(change) < 100 ? "OK" : "WATCH";
+
+    actionPlan.push({
+      custNum:      Number(k),
+      customer:     rec.customer,
+      city:         "",       // not in comp report — will be filled from customer list
+      salesman:     "House",  // default — will be overwritten by customer list match
+      sales2025:    Math.round(s25 * 100) / 100,
+      sales2026:    Math.round(s26 * 100) / 100,
+      change:       Math.round(change * 100) / 100,
+      gpPct:        Math.round(gpPct * 10000) / 10000,
+      action,
+      topDept,
+      declinedDept,
+      focus:        topDept,
+    });
+  }
+
+  actionPlan.sort((a, b) => b.sales2026 - a.sales2026);
+  return { actionPlan };
+}
+
+// ── Statesboro sheet (same format as CustomerComp) ──────────────────────────
+function parseMasterStatesboro(wb) {
+  if (!wb.Sheets["Statesboro"]) return { actionPlan: [] };
+  const rows = getSheetRows(wb, "Statesboro", 4);
+  const by26 = {}, by25 = {};
+  for (const row of rows) {
+    const c25 = row[0], dept25 = row[2], amt25 = Number(row[4] || 0);
+    const c26 = row[10], dept26 = row[12], amt26 = Number(row[14] || 0), gp26 = Number(row[15] || 0);
+    const name26 = row[11];
+    if (c25 && typeof c25 === "number" && !isGAEPD(dept25)) {
+      const k = String(c25);
+      if (!by25[k]) by25[k] = { sales: 0, depts: {} };
+      by25[k].sales += amt25;
+    }
+    if (c26 && typeof c26 === "number" && !isGAEPD(dept26)) {
+      const k = String(c26);
+      if (!by26[k]) by26[k] = { custNum: c26, customer: String(name26 || "").trim(), sales: 0, gp: 0, depts: {} };
+      by26[k].sales += amt26; by26[k].gp += gp26;
+      if (dept26) by26[k].depts[dept26] = (by26[k].depts[dept26] || 0) + amt26;
+    }
+  }
+  const ap = [];
+  for (const k of Object.keys(by26)) {
+    const d = by26[k];
+    const s25 = by25[k]?.sales || 0;
+    const topDept = Object.keys(d.depts).sort((a, b) => d.depts[b] - d.depts[a])[0] || "";
+    ap.push({
+      custNum: Number(k), customer: d.customer, city: "Statesboro", salesman: "Austin",
+      sales2025: Math.round(s25 * 100) / 100,
+      sales2026: Math.round(d.sales * 100) / 100,
+      change:    Math.round((d.sales - s25) * 100) / 100,
+      gpPct:     d.sales > 0 ? Math.round((d.gp / d.sales) * 10000) / 10000 : 0,
+      action: (d.sales - s25) > 500 ? "GROW" : (d.sales - s25) < -500 ? "LOST" : "OK",
+      topDept, declinedDept: "", focus: topDept,
+    });
+  }
+  return { actionPlan: ap };
+}
+
+// ── WTD sheet — parse branch comparison section (rows 10+) ──────────────────
+function parseMasterWTD(wb) {
+  if (!wb.Sheets["WTD"]) return null;
+  const rows = getSheetRows(wb, "WTD", 0);
+  const BRANCHES = {"1 - BYRON":"Byron","2 - TIFTON":"Tifton","3 - STATESBORO":"Statesboro","5 - ATHENS":"Athens"};
+  const branchData = {};
+
+  // Scan all rows for branch comparison data
+  for (const row of rows) {
+    const cell0 = String(row[0] || "").trim();
+    const branch = BRANCHES[cell0];
+    if (branch) {
+      branchData[branch] = {
+        sales2025: Number(row[1] || 0),
+        sales2026: Number(row[2] || 0),
+        gp2025:    Number(row[6] || row[5] || 0),
+        gp2026:    Number(row[7] || row[6] || 0),
+      };
+    }
+  }
+  return Object.keys(branchData).length > 0 ? branchData : null;
+}
+
+// ── AD Programs ──────────────────────────────────────────────────────────────
+function parseMasterToyo(wb) {
+  if (!wb.Sheets["Toyo"]) return null;
+  // rows 5+ (skip title, note, group-hdr, col-hdr)
+  const rows = getSheetRows(wb, "Toyo", 4);
+  const result = {};
+  for (const row of rows) {
+    if (!row[5] || !String(row[5]).includes("Tifton")) continue;
+    const custName = String(row[3] || "").trim();
+    const toyoNum  = String(row[2] || "").trim();
+    result[toyoNum] = {
+      toyoNum, dealerName: custName,
+      pcr: {
+        primary:   Number(row[6] || 0),
+        secondary: Number(row[7] || 0),
+        total:     Number(row[8] || 0),
+        pct:       parseFloat(String(row[9] || "0").replace("%", "")) || 0,
+      },
+      tbr: {
+        primary:   Number(row[10] || 0),
+        secondary: Number(row[11] || 0),
+        total:     Number(row[12] || 0),
+      },
+    };
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function parseMasterAmericus(wb) {
+  if (!wb.Sheets["Americus"]) return null;
+  const rows = getSheetRows(wb, "Americus", 4);
+  const result = {};
+  for (const row of rows) {
+    const dealerNum = row[0];
+    if (!dealerNum || typeof dealerNum !== "number") continue;
+    const name = String(row[1] || "").trim();
+    if (!name || name.toLowerCase().includes("total")) continue;
+    result[String(dealerNum)] = {
+      dealerNum,
+      dealerName: name,
+      units2025:  Number(row[6] || 0),
+      jan:        Number(row[7] || 0),
+      feb:        Number(row[8] || 0),
+      mar:        Number(row[9] || 0),
+      q1:         Number(row[10] || 0),
+      apr:        Number(row[11] || 0),
+      may:        Number(row[12] || 0),
+      jun:        Number(row[13] || 0),
+      q2:         Number(row[14] || 0),
+      ytd:        Number(row[15] || 0),
+      asOf:       new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+    };
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function parseMasterAscenso(wb) {
+  if (!wb.Sheets["Ascenso"]) return null;
+  const rows = getSheetRows(wb, "Ascenso", 4);
+  const result = {};
+  for (const row of rows) {
+    const custNum = row[0];
+    if (!custNum || typeof custNum !== "number") continue;
+    result[String(custNum)] = {
+      custNum,
+      name:   String(row[1] || "").trim(),
+      qty:    Number(row[3] || 0),
+      amount: Number(row[4] || 0),
+    };
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function parseMasterFalken(wb, sheetName) {
+  if (!wb.Sheets[sheetName]) return null;
+  const rows = getSheetRows(wb, sheetName, 4);
+  const result = [];
+  for (const row of rows) {
+    const fanId = row[0];
+    if (!fanId || typeof fanId !== "number") continue;
+    result.push({
+      fanId,
+      segment:   String(row[1] || "").trim(),
+      parentId:  row[2],
+      dealer:    String(row[3] || "").trim(),
+      city:      String(row[7] || "").trim(),
+      territory: String(row[9] || "").trim(),
+      q1:        Number(row[10] || 0),
+      q2:        Number(row[11] || 0),
+      q3:        Number(row[12] || 0),
+      q4:        Number(row[13] || 0),
+      ytd:       Number(row[14] || 0),
+    });
+  }
+  return result.length > 0 ? result : null;
+}
+
+function parseMasterBARNN(wb) {
+  if (!wb.Sheets["BARNN"]) return null;
+  const rows = getSheetRows(wb, "BARNN", 4);
+  const result = { primary: [], secondary: [] };
+  for (const row of rows) {
+    const parent  = row[0];
+    const acctNum = row[1];
+    const name    = String(row[2] || "").trim();
+    if (!acctNum || typeof acctNum !== "number") continue;
+    if (name.toLowerCase().includes("total")) continue;
+    const entry = {
+      parent: String(parent || ""),
+      acctNum,
+      name,
+      bs:    Number(row[5] || 0),
+      fs:    Number(row[8] || 0),
+      total: Number(row[15] || 0),
+      role:  String(parent) === "960788" ? "Primary" : "Secondary",
+    };
+    if (String(parent) === "960788") result.primary.push(entry);
+    else result.secondary.push(entry);
+  }
+  return (result.primary.length + result.secondary.length) > 0 ? result : null;
+}
+
+function parseMasterYokohama(wb) {
+  if (!wb.Sheets["Yokohama"]) return null;
+  const rows = getSheetRows(wb, "Yokohama", 4);
+  const result = [];
+  for (const row of rows) {
+    const dealerNum = row[0];
+    if (!dealerNum || typeof dealerNum !== "number") continue;
+    result.push({
+      dealerNum,
+      dealerName:  String(row[1] || "").trim(),
+      salesRep:    String(row[2] || "").trim(),
+      primary:     Number(row[4] || 0),
+      priPct:      parseFloat(String(row[5] || "0").replace("%", "")) || 0,
+      hasSecondary: String(row[6] || "").trim().toUpperCase() === "Y",
+      secondary:   Number(row[8] || 0),
+      qtd:         Number(row[10] || 0),
+      toNext:      Number(row[11] || 0),
+    });
+  }
+  return result.length > 0 ? result : null;
+}
+
+// ── Master entry point ────────────────────────────────────────────────────────
+function parseMasterWorkbook(wb) {
+  return {
+    ar:         parseMasterAR(wb),
+    customerComp: parseMasterCustomerComp(wb),
+    statesboro: parseMasterStatesboro(wb),
+    wtd:        parseMasterWTD(wb),
+    toyo:       parseMasterToyo(wb),
+    americus:   parseMasterAmericus(wb),
+    ascenso:    parseMasterAscenso(wb),
+    falkenPLT:  parseMasterFalken(wb, "Falken_PLT"),
+    falkenTBR:  parseMasterFalken(wb, "Falken_TBR"),
+    barnn:      parseMasterBARNN(wb),
+    yokohama:   parseMasterYokohama(wb),
+  };
 }
 
 const TABS = [
@@ -1332,6 +1675,72 @@ export default function App() {
 
   async function handleUpload(slotId, wb) {
     let parsed;
+
+    // ── MASTER WORKBOOK DETECTION ─────────────────────────────────────────
+    if (isMasterWorkbook(wb)) {
+      const m = parseMasterWorkbook(wb);
+      const summary = [];
+
+      // AR
+      if (m.ar && m.ar.length > 0) {
+        setFileData(prev => ({ ...prev, ar: m.ar }));
+        summary.push(`AR: ${m.ar.length} accounts`);
+      }
+
+      // CustomerComp → merge into actionPlan
+      if (m.customerComp?.actionPlan?.length > 0) {
+        setFileData(prev => {
+          const existing = prev.weekComp || SEED_WEEK_COMP;
+          let mergedAP = [...(existing.actionPlan || [])];
+          m.customerComp.actionPlan.forEach(newAP => {
+            const idx = mergedAP.findIndex(a => String(a.custNum) === String(newAP.custNum));
+            // Preserve salesman/city from existing customer list
+            const existingEntry = idx >= 0 ? mergedAP[idx] : null;
+            const merged = {
+              ...newAP,
+              city:     existingEntry?.city     || newAP.city     || "",
+              salesman: existingEntry?.salesman  || newAP.salesman || "House",
+            };
+            if (idx >= 0) mergedAP[idx] = merged;
+            else mergedAP.push(merged);
+          });
+          return { ...prev, weekComp: { ...existing, actionPlan: mergedAP } };
+        });
+        summary.push(`CustomerComp: ${m.customerComp.actionPlan.length} accounts`);
+      }
+
+      // Statesboro
+      if (m.statesboro?.actionPlan?.length > 0) {
+        setFileData(prev => ({ ...prev, statesboroAP: m.statesboro.actionPlan }));
+        summary.push(`Statesboro: ${m.statesboro.actionPlan.length} accounts`);
+      }
+
+      // AD Programs — merge into existing adPrograms state
+      const adUpdates = {};
+      if (m.toyo)     { adUpdates.toyoData     = m.toyo;     summary.push("Toyo ✓"); }
+      if (m.americus) { adUpdates.americusData  = m.americus; summary.push("Americus ✓"); }
+      if (m.ascenso)  { adUpdates.ascensoData   = m.ascenso;  summary.push("Ascenso ✓"); }
+      if (m.falkenPLT){ adUpdates.falkenPLT     = m.falkenPLT; summary.push(`Falken PLT: ${m.falkenPLT.length}`); }
+      if (m.falkenTBR){ adUpdates.falkenTBR     = m.falkenTBR; summary.push(`Falken TBR: ${m.falkenTBR.length}`); }
+      if (m.barnn)    { adUpdates.barnnData      = m.barnn;    summary.push("BARNN ✓"); }
+      if (m.yokohama) { adUpdates.yokohamaData   = m.yokohama; summary.push(`Yokohama: ${m.yokohama.length} dealers`); }
+      if (Object.keys(adUpdates).length > 0) {
+        setFileData(prev => ({ ...prev, ...adUpdates }));
+      }
+
+      // Record upload timestamp for all slots
+      const now = new Date().toISOString();
+      const newDates = { ...uploadDates, ar: now, weekComp: now, sales: now, master: now };
+      setUploadDates(newDates);
+      setDismissedWarning(false);
+      try { localStorage.setItem("upload_dates", JSON.stringify(newDates)); } catch {}
+
+      setNotice(`✓ Master Upload loaded — ${summary.join(" · ")}`);
+      setTimeout(() => setNotice(""), 8000);
+      return;
+    }
+
+    // ── LEGACY INDIVIDUAL FILE UPLOADS ────────────────────────────────────
     if (slotId === "weekComp") {
       parsed = parseWeekCompWorkbook(wb);
       setFileData(prev => {
@@ -2476,12 +2885,14 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
   const AUSTIN_TARGET_DEPTS = ["INDUSTRIAL TIRES", "OFF THE ROAD TIRES", "FARM TIRES"];
   const isAustin = repName === "Austin";
   const repLeads = (leads||[]).filter(l => {
-    const assignedTo = (l.assigned_to_name||"").toLowerCase();
-    const repLower   = (repName||"").toLowerCase();
-    return assignedTo === repLower
-      || l.assigned_to === currentUser?.id
-      || l.created_by  === currentUser?.id
-      || (currentUser?.id !== "admin" && assignedTo === (currentUser?.name||"").toLowerCase());
+    if (currentUser?.id === "admin") return true;                         // admin sees all
+    const assignedTo     = String(l.assigned_to      || "").toLowerCase();
+    const assignedName   = String(l.assigned_to_name || "").toLowerCase();
+    const userId         = String(currentUser?.id    || "").toLowerCase();
+    const userName       = String(currentUser?.name  || "").toLowerCase();
+    // Rep only sees leads explicitly assigned to them (by id or name)
+    return assignedTo === userId || assignedTo === userName
+        || assignedName === userName || assignedName === userId;
   });
 
 
@@ -3169,35 +3580,20 @@ function MapTab({ customers, weekComp }) {
 
 // ── Rep Call Log ──────────────────────────────────────────────────────────────
 function RepCallLog({ repName, actionPlan, currentUser, onLogActivity }) {
-  const [entries, setEntries]     = useState([]);
-  const [weekFilter, setWeekFilter] = useState("all");
-  const [copied, setCopied]       = useState(null);
+  const CALL_LOG_KEY = `call_log_${currentUser?.id || repName}`;
+  const [entries, setEntries]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem(CALL_LOG_KEY) || "[]"); } catch { return []; }
+  });
+  const [showAdd, setShowAdd]   = useState(false);
+  const [newEntry, setNewEntry] = useState({ custNum:"", date: new Date().toISOString().slice(0,10), note:"" });
+  const [expandedWeeks, setExpandedWeeks] = useState({});   // weekKey → bool
+  const [copied, setCopied]     = useState(null);
   const [allCopied, setAllCopied] = useState(false);
-  const [loaded, setLoaded]       = useState(false);
-  const [newEntry, setNewEntry]   = useState({ custNum:"", date: new Date().toISOString().slice(0,10), note:"" });
-  const [showAdd, setShowAdd]     = useState(false);
 
-  // Build customer lookup from action plan
   const custList = actionPlan.map(a => ({ custNum: String(a.custNum), name: a.customer, city: a.city }));
 
-  const CALL_LOG_KEY = `call_log_${currentUser?.id || repName}`;
-
-  useEffect(() => {
-    loadEntries();
-  }, []);
-
-  function loadEntries() {
-    try {
-      const saved = localStorage.getItem(CALL_LOG_KEY);
-      const parsed = saved ? JSON.parse(saved) : [];
-      setEntries(parsed.sort((a,b) => new Date(b.date) - new Date(a.date)));
-    } catch {}
-    setLoaded(true);
-  }
-
   function saveEntries(updated) {
-    // Keep newest first in storage, display will reverse as needed
-    const sorted = [...updated].sort((a,b) => new Date(b.date) - new Date(a.date));
+    const sorted = [...updated].sort((a,b) => new Date(b.date)-new Date(a.date));
     setEntries(sorted);
     try { localStorage.setItem(CALL_LOG_KEY, JSON.stringify(sorted)); } catch {}
   }
@@ -3214,85 +3610,92 @@ function RepCallLog({ repName, actionPlan, currentUser, onLogActivity }) {
       note:     newEntry.note.trim(),
       rep:      currentUser?.name || repName,
     };
-    saveEntries([entry, ...entries]);
-    setNewEntry({ custNum:"", date:new Date().toISOString().slice(0,10), note:"" });
+    const updated = [entry, ...entries];
+    saveEntries(updated);
+    setNewEntry({ custNum:"", date: new Date().toISOString().slice(0,10), note:"" });
     setShowAdd(false);
+    // Auto-expand the week this was added to
+    setExpandedWeeks(prev => ({ ...prev, [getWeekKey(entry.date)]: true }));
     if (onLogActivity) onLogActivity("call_note", `${entry.custName} — ${entry.note.slice(0,60)}${entry.note.length>60?"…":""}`);
   }
 
-  function deleteEntry(id) {
-    saveEntries(entries.filter(e => e.id !== id));
-  }
-
-  // Group by ISO week
-  function getWeekLabel(dateStr) {
-    const d = new Date(dateStr);
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - ((d.getDay()+6)%7));
-    const friday = new Date(monday);
-    friday.setDate(monday.getDate() + 4);
-    const fmt = dt => dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
-    return `Week of ${fmt(monday)} – ${fmt(friday)}`;
-  }
+  function deleteEntry(id) { saveEntries(entries.filter(e => e.id !== id)); }
 
   function getWeekKey(dateStr) {
-    const d = new Date(dateStr);
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - ((d.getDay()+6)%7));
-    return monday.toISOString().slice(0,10);
+    const d = new Date(dateStr); const mon = new Date(d);
+    mon.setDate(d.getDate()-((d.getDay()+6)%7));
+    return mon.toISOString().slice(0,10);
+  }
+  function getWeekLabel(dateStr) {
+    const d = new Date(dateStr); const mon = new Date(d);
+    mon.setDate(d.getDate()-((d.getDay()+6)%7));
+    const fri = new Date(mon); fri.setDate(mon.getDate()+4);
+    const fmt = dt => dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    // Get ISO week number
+    const jan1 = new Date(mon.getFullYear(),0,1);
+    const wkNum = Math.ceil(((mon-jan1)/86400000+jan1.getDay()+1)/7);
+    return `W${wkNum} · ${fmt(mon)} – ${fmt(fri)}`;
   }
 
-  // Build week groups
-  const weeks = {};
-  entries.forEach(e => {
-    const wk = getWeekKey(e.date);
-    if (!weeks[wk]) weeks[wk] = { label: getWeekLabel(e.date), entries:[] };
-    weeks[wk].entries.push(e);
-  });
-  const weekKeys = Object.keys(weeks).sort(); // oldest first
-
-  const displayed = (weekFilter === "all" ? entries : entries.filter(e => getWeekKey(e.date) === weekFilter))
-    .sort((a,b) => new Date(a.date) - new Date(b.date)); // oldest first
-
-  // Format for CRM copy
-  function formatForCRM(ents) {
-    return ents.map(e =>
-      `Customer: ${e.custName}${e.city?` (${e.city})`:""}\nDate: ${new Date(e.date).toLocaleDateString("en-US",{weekday:"short",month:"long",day:"numeric",year:"numeric"})}\nNotes: ${e.note}`
-    ).join("\n\n---\n\n");
-  }
-
-  function copyWeek(wkKey) {
-    const ents = weeks[wkKey]?.entries || [];
-    navigator.clipboard.writeText(formatForCRM(ents)).then(() => {
-      setCopied(wkKey);
-      setTimeout(() => setCopied(null), 2500);
-    });
+  function copyWeek(weekEntries) {
+    const text = weekEntries.map(e =>
+      `${e.custName}${e.city?" ("+e.city+")":""} — ${e.date}\n${e.note}`
+    ).join("\n\n");
+    navigator.clipboard?.writeText(text).catch(()=>{});
+    setCopied("copied"); setTimeout(()=>setCopied(null),2000);
   }
 
   function copyAll() {
-    navigator.clipboard.writeText(formatForCRM(displayed)).then(() => {
-      setAllCopied(true);
-      setTimeout(() => setAllCopied(false), 2500);
-    });
+    // Group and copy all entries formatted by week
+    const text = sortedWeekKeys.map(wk => {
+      const grp = weekGroups[wk];
+      return `=== ${grp.label} ===\n\n` + grp.entries.map(e =>
+        `${e.custName}${e.city?" ("+e.city+")":""} — ${e.date}\n${e.note}`
+      ).join("\n\n");
+    }).join("\n\n---\n\n");
+    navigator.clipboard?.writeText(text).catch(()=>{});
+    setAllCopied(true); setTimeout(()=>setAllCopied(false),2000);
+  }
+
+  // Build week groups — latest week first
+  const weekGroups = {};
+  entries.forEach(e => {
+    const wk = getWeekKey(e.date);
+    if (!weekGroups[wk]) weekGroups[wk] = { label: getWeekLabel(e.date), entries: [] };
+    weekGroups[wk].entries.push(e);
+  });
+  const sortedWeekKeys = Object.keys(weekGroups).sort((a,b) => b.localeCompare(a));
+
+  // Auto-expand most recent week on first load
+  const latestWk = sortedWeekKeys[0];
+  useState(() => {
+    if (latestWk) setExpandedWeeks({ [latestWk]: true });
+  });
+
+  function toggleWeek(wk) {
+    setExpandedWeeks(prev => ({ ...prev, [wk]: !prev[wk] }));
   }
 
   return (
     <div>
-      {/* Header bar */}
-      <div style={{ display:"flex", gap:8, marginBottom:"0.85rem", alignItems:"center", flexWrap:"wrap" }}>
+      {/* Header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+        marginBottom:"0.85rem", flexWrap:"wrap", gap:8 }}>
         <div>
-          <div style={{ fontSize:"0.8rem", fontWeight:700, color:TEXT }}>📞 Call Notes Log</div>
-          <div style={{ fontSize:"0.68rem", color:MUTED }}>{entries.length} entries · organized for CRM copy-paste</div>
+          <div style={{ fontSize:"0.82rem", fontWeight:700, color:TEXT }}>📞 Call Log History</div>
+          <div style={{ fontSize:"0.68rem", color:MUTED }}>
+            {entries.length} notes · {sortedWeekKeys.length} week{sortedWeekKeys.length!==1?"s":""} · latest first
+          </div>
         </div>
-        <div style={{ display:"flex", gap:6, marginLeft:"auto", flexWrap:"wrap" }}>
-          {displayed.length > 0 && (
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+          {entries.length > 0 && (
             <button onClick={copyAll}
-              style={{ fontSize:"0.7rem", fontWeight:700,
+              style={{ fontSize:"0.68rem", fontWeight:700,
                 color: allCopied?"#fff":"#0891B2",
                 background: allCopied?"#0891B2":"#EFF6FF",
                 border:`1px solid ${allCopied?"#0891B2":"#BFDBFE"}`,
-                borderRadius:6, padding:"0.35rem 0.85rem", cursor:"pointer", transition:"all 0.2s" }}>
-              {allCopied ? "✓ Copied!" : `📋 Copy ${weekFilter==="all"?"All":"Week"} for CRM`}
+                borderRadius:6, padding:"0.3rem 0.75rem", cursor:"pointer", whiteSpace:"nowrap" }}>
+              {allCopied ? "✓ Copied!" : "📋 Copy All for CRM"}
             </button>
           )}
           <button onClick={()=>setShowAdd(!showAdd)}
@@ -3304,118 +3707,135 @@ function RepCallLog({ repName, actionPlan, currentUser, onLogActivity }) {
 
       {/* Add note form */}
       {showAdd && (
-        <div style={{ ...S.card, border:`2px solid #0891B2`, marginBottom:"1rem" }}>
+        <div style={{ ...S.card, border:"2px solid #0891B2", marginBottom:"1rem" }}>
           <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#0891B2", marginBottom:"0.75rem" }}>📝 Add Call Note</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.6rem", marginBottom:"0.6rem" }}>
             <div>
               <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Customer *</div>
-              <select value={newEntry.custNum} onChange={e=>setNewEntry(p=>({...p,custNum:e.target.value}))}
+              <select value={newEntry.custNum}
+                onChange={e=>setNewEntry(p=>({...p,custNum:e.target.value}))}
                 style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
                   padding:"0.4rem 0.65rem", borderRadius:6, fontSize:"0.75rem", outline:"none" }}>
                 <option value="">— Select Customer —</option>
-                {custList.map(c=><option key={c.custNum} value={c.custNum}>{c.name}{c.city?` (${c.city})`:""}</option>)}
+                {custList.map(c=>(
+                  <option key={c.custNum} value={c.custNum}>{c.name}{c.city?` (${c.city})`:""}</option>
+                ))}
               </select>
             </div>
             <div>
               <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Date *</div>
-              <input type="date" value={newEntry.date} onChange={e=>setNewEntry(p=>({...p,date:e.target.value}))}
+              <input type="date" value={newEntry.date}
+                onChange={e=>setNewEntry(p=>({...p,date:e.target.value}))}
                 style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
                   padding:"0.4rem 0.65rem", borderRadius:6, fontSize:"0.75rem", outline:"none", boxSizing:"border-box" }} />
             </div>
           </div>
           <div style={{ marginBottom:"0.75rem" }}>
-            <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Call Notes *</div>
-            <textarea value={newEntry.note} onChange={e=>setNewEntry(p=>({...p,note:e.target.value}))}
-              placeholder="What happened on this call? What was discussed, decided, or followed up on?"
+            <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Notes *</div>
+            <textarea value={newEntry.note}
+              onChange={e=>setNewEntry(p=>({...p,note:e.target.value}))}
+              placeholder="What was discussed, outcomes, follow-up needed..."
               rows={4}
               style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
-                padding:"0.5rem 0.75rem", borderRadius:6, fontSize:"0.78rem", resize:"vertical",
-                outline:"none", boxSizing:"border-box", lineHeight:1.7 }}
+                padding:"0.5rem 0.75rem", borderRadius:6, fontSize:"0.75rem", resize:"vertical",
+                outline:"none", boxSizing:"border-box", lineHeight:1.65 }}
               onFocus={e=>e.target.style.borderColor="#0891B2"}
               onBlur={e=>e.target.style.borderColor=BORDER}
             />
           </div>
           <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-            <button onClick={()=>{setShowAdd(false);setNewEntry({custNum:"",date:new Date().toISOString().slice(0,10),note:"" });}}
-              style={{ ...S.btn(MUTED) }}>Cancel</button>
+            <button onClick={()=>{setShowAdd(false);setNewEntry({custNum:"",date:new Date().toISOString().slice(0,10),note:""}); }}
+              style={S.btn(MUTED)}>Cancel</button>
             <button onClick={addEntry} disabled={!newEntry.note.trim()||!newEntry.custNum}
               style={{ ...S.btn("#0891B2"), background:"#0891B2", color:"#fff",
-                opacity:!newEntry.note.trim()||!newEntry.custNum?0.5:1 }}>
+                opacity:!newEntry.note.trim()||!newEntry.custNum?0.45:1 }}>
               Save Note
             </button>
           </div>
         </div>
       )}
 
-      {/* Week filter */}
-      {weekKeys.length > 1 && (
-        <div style={{ display:"flex", gap:5, marginBottom:"0.75rem", flexWrap:"wrap", alignItems:"center" }}>
-          <button onClick={()=>setWeekFilter("all")}
-            style={{ fontSize:"0.68rem", fontWeight:weekFilter==="all"?700:400,
-              color:weekFilter==="all"?"#fff":MUTED,
-              background:weekFilter==="all"?"#0891B2":"#F4F7FB",
-              border:`1px solid ${weekFilter==="all"?"#0891B2":BORDER}`,
-              borderRadius:6, padding:"0.25rem 0.65rem", cursor:"pointer" }}>All Weeks</button>
-          {weekKeys.map(wk=>(
-            <button key={wk} onClick={()=>setWeekFilter(wk)}
-              style={{ fontSize:"0.68rem", fontWeight:weekFilter===wk?700:400,
-                color:weekFilter===wk?"#fff":MUTED,
-                background:weekFilter===wk?"#0891B2":"#F4F7FB",
-                border:`1px solid ${weekFilter===wk?"#0891B2":BORDER}`,
-                borderRadius:6, padding:"0.25rem 0.65rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-              {weeks[wk].label} ({weeks[wk].entries.length})
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Empty state */}
-      {!loaded && <div style={{ ...S.card, textAlign:"center", padding:"1.5rem", color:MUTED }}>Loading…</div>}
-      {loaded && entries.length === 0 && (
-        <div style={{ ...S.card, textAlign:"center", padding:"2rem", color:MUTED }}>
-          <div style={{ fontSize:"1.5rem", marginBottom:8 }}>📞</div>
-          <div style={{ fontWeight:600, marginBottom:4 }}>No call notes yet</div>
-          <div style={{ fontSize:"0.72rem" }}>Click + Add Note to start logging your calls</div>
+      {entries.length === 0 && !showAdd && (
+        <div style={{ ...S.card, textAlign:"center", padding:"2rem 1rem", color:MUTED }}>
+          <div style={{ fontSize:"2rem", marginBottom:"0.5rem" }}>📞</div>
+          <div style={{ fontSize:"0.8rem", fontWeight:600, marginBottom:4 }}>No call notes yet</div>
+          <div style={{ fontSize:"0.7rem" }}>Click + Add Note to log your first visit or call</div>
         </div>
       )}
 
-      {/* Entries by week */}
-      {weekFilter === "all"
-        ? weekKeys.map(wk => (
-            <div key={wk} style={{ marginBottom:"1.25rem" }}>
-              {/* Week header */}
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
-                padding:"0.45rem 0.85rem", background:"#EFF6FF", border:`1px solid #BFDBFE`,
-                borderRadius:8, marginBottom:"0.5rem" }}>
-                <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#0891B2" }}>
-                  📅 {weeks[wk].label}
-                  <span style={{ marginLeft:8, fontSize:"0.65rem", fontWeight:400, color:MUTED }}>{weeks[wk].entries.length} note{weeks[wk].entries.length!==1?"s":""}</span>
-                </div>
-                <button onClick={()=>copyWeek(wk)}
-                  style={{ fontSize:"0.65rem", fontWeight:700,
-                    color: copied===wk?"#fff":"#0891B2",
-                    background: copied===wk?"#0891B2":"transparent",
-                    border:`1px solid ${copied===wk?"#0891B2":"#BFDBFE"}`,
-                    borderRadius:5, padding:"0.2rem 0.65rem", cursor:"pointer", transition:"all 0.2s" }}>
-                  {copied===wk ? "✓ Copied!" : "📋 Copy Week"}
+      {/* Week-grouped history — latest week first */}
+      {sortedWeekKeys.map(wk => {
+        const grp      = weekGroups[wk];
+        const isOpen   = !!expandedWeeks[wk];
+        const isLatest = wk === latestWk;
+        return (
+          <div key={wk} style={{ marginBottom:"0.65rem" }}>
+            {/* Week header — clickable accordion */}
+            <div onClick={() => toggleWeek(wk)}
+              style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+                padding:"0.55rem 0.85rem",
+                background: isLatest ? "#EFF6FF" : "#F8FAFC",
+                border: `1px solid ${isLatest?"#BFDBFE":BORDER}`,
+                borderRadius: isOpen ? "8px 8px 0 0" : 8,
+                cursor:"pointer", userSelect:"none" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <span style={{ fontSize:"0.82rem" }}>{isOpen?"▾":"▸"}</span>
+                <span style={{ fontSize:"0.78rem", fontWeight:700,
+                  color: isLatest?"#1E5FCC":TEXT }}>{grp.label}</span>
+                {isLatest && <span style={{ fontSize:"0.6rem", fontWeight:700, color:"#fff",
+                  background:"#1E5FCC", borderRadius:6, padding:"1px 7px" }}>Latest</span>}
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <span style={{ fontSize:"0.68rem", color:MUTED }}>
+                  {grp.entries.length} note{grp.entries.length!==1?"s":""}
+                </span>
+                <button onClick={e=>{e.stopPropagation();copyWeek(grp.entries);}}
+                  style={{ fontSize:"0.62rem", color:"#0891B2", background:"#EFF6FF",
+                    border:"1px solid #BFDBFE", borderRadius:5, padding:"2px 8px", cursor:"pointer" }}>
+                  {copied==="copied"?"✓ Copied":"📋 CRM"}
                 </button>
               </div>
-              {/* Entries */}
-              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                {[...weeks[wk].entries].sort((a,b)=>new Date(a.date)-new Date(b.date)).map(e => (
-                  <EntryCard key={e.id} entry={e} onDelete={deleteEntry} formatForCRM={formatForCRM} />
+            </div>
+
+            {/* Week entries — shown when expanded */}
+            {isOpen && (
+              <div style={{ border:`1px solid ${isLatest?"#BFDBFE":BORDER}`, borderTop:"none",
+                borderRadius:"0 0 8px 8px", overflow:"hidden" }}>
+                {[...grp.entries].sort((a,b)=>new Date(b.date)-new Date(a.date)).map((e,i) => (
+                  <div key={e.id} style={{ padding:"0.7rem 0.85rem",
+                    background: i%2===0?"#FFFFFF":"#F8FAFC",
+                    borderTop: i>0?`1px solid ${BORDER}`:undefined }}>
+                    <div style={{ display:"flex", justifyContent:"space-between",
+                      alignItems:"flex-start", marginBottom:"0.3rem" }}>
+                      <div>
+                        <span style={{ fontSize:"0.78rem", fontWeight:700, color:TEXT }}>
+                          {e.custName}
+                        </span>
+                        {e.city && (
+                          <span style={{ fontSize:"0.68rem", color:MUTED, marginLeft:6 }}>
+                            {e.city}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+                        <span style={{ fontSize:"0.65rem", color:MUTED }}>
+                          {new Date(e.date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}
+                        </span>
+                        <button onClick={()=>deleteEntry(e.id)}
+                          style={{ fontSize:"0.6rem", color:RED, background:"none",
+                            border:"none", cursor:"pointer", padding:"0 2px", lineHeight:1 }}>×</button>
+                      </div>
+                    </div>
+                    <div style={{ fontSize:"0.75rem", color:TEXT, lineHeight:1.65,
+                      whiteSpace:"pre-wrap" }}>{e.note}</div>
+                  </div>
                 ))}
               </div>
-            </div>
-          ))
-        : (
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-            {displayed.map(e => (
-              <EntryCard key={e.id} entry={e} onDelete={deleteEntry} formatForCRM={formatForCRM} />
-            ))}
+            )}
           </div>
-        )
-      }
+        );
+      })}
     </div>
   );
 }
