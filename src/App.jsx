@@ -1587,6 +1587,8 @@ export default function App() {
       }
       const savedAP = localStorage.getItem("pulse_action_plan");
       if (savedAP) weekComp = { ...weekComp, actionPlan: JSON.parse(savedAP) };
+      const savedDepts = localStorage.getItem("pulse_depts");
+      if (savedDepts) weekComp = { ...weekComp, depts: JSON.parse(savedDepts) };
       const savedAR = localStorage.getItem("pulse_ar_data");
       if (savedAR) ar = JSON.parse(savedAR);
       const savedAD = localStorage.getItem("pulse_ad_data");
@@ -3002,7 +3004,7 @@ function OverviewTab({ weekComp, onAskAI, onCustomerClick, customers }) {
       </div>
 
       {subTab === "weekcomp" && <WeekByWeekView weeks={weeks} />}
-      {subTab === "depts"    && <DeptView depts={weekComp?.depts || []} />}
+      {subTab === "depts"    && <DeptView depts={weekComp?.depts || []} weekComp={weekComp} />}
       {subTab === "action"   && <ActionPlanView actionPlan={weekComp?.actionPlan || []} onCustomerClick={onCustomerClick} customers={customers} />}
       {subTab === "branches"  && <BranchesTab branchData={branchData} />}
       {subTab === "qtd"       && <QTDTab branchData={branchData} />}
@@ -3070,8 +3072,12 @@ function WeekByWeekView({ weeks }) {
 }
 
 // ── Dept View ─────────────────────────────────────────────────────────────────
-function DeptView({ depts }) {
-  // Filter out zero-dollar rows and analysis text rows (bullet points, summary headers)
+function DeptView({ depts, weekComp }) {
+  const [aiAnalysis, setAiAnalysis] = useState(() => {
+    try { return localStorage.getItem("pulse_dept_ai") || ""; } catch { return ""; }
+  });
+  const [loading, setLoading] = useState(false);
+
   const clean = (depts||[]).filter(d =>
     d.sales > 0
     && !String(d.dept||"").startsWith("•")
@@ -3081,43 +3087,136 @@ function DeptView({ depts }) {
   );
   const sorted = [...clean].sort((a,b) => b.sales - a.sales);
   const maxSales = sorted[0]?.sales || 1;
+  const totalSales = sorted.reduce((s,d)=>s+d.sales,0);
+  const totalGP    = sorted.reduce((s,d)=>s+d.gp,0);
+
+  async function analyzeWithAI() {
+    setLoading(true);
+    const deptSummary = sorted.slice(0,12).map(d=>
+      `${d.dept}: $${(d.sales/1000).toFixed(1)}K sales, GP ${(d.gpPct*100).toFixed(1)}%, ${d.assessment}`
+    ).join('\n');
+    const prompt = `You are a sales manager for Tire Distributors of Georgia - Tifton branch.
+Analyze this department breakdown and give actionable recommendations.
+
+DEPARTMENT DATA (YTD 2026):
+Total Sales: $${(totalSales/1000000).toFixed(2)}M  Total GP: $${(totalGP/1000).toFixed(1)}K  Overall GP%: ${(totalGP/totalSales*100).toFixed(1)}%
+
+${deptSummary}
+
+Give a 5-6 bullet analysis focused on:
+1. Top opportunities to grow margin
+2. Departments losing GP and why
+3. Quick wins for the team this week
+4. Any concerns to flag
+Keep each bullet to 1-2 sentences, specific and actionable.`;
+
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_KEY,
+          "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:600,messages:[{role:"user",content:prompt}]})
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || "";
+      setAiAnalysis(text);
+      try { localStorage.setItem("pulse_dept_ai", text); } catch {}
+    } catch(e) { setAiAnalysis(`Analysis failed: ${e.message}`); }
+    setLoading(false);
+  }
 
   return (
-    <div style={S.card}>
-      <table style={S.table}>
-        <thead>
-          <tr>
-            <th style={S.th}>Department</th>
-            <th style={{ ...S.th, width: 160 }}>Sales Mix</th>
-            <th style={{ ...S.th, textAlign: "right" }}>2026 Sales</th>
-            <th style={{ ...S.th, textAlign: "right" }}>GP $</th>
-            <th style={{ ...S.th, textAlign: "right" }}>GP %</th>
-            <th style={{ ...S.th, textAlign: "right" }}>Lines</th>
-            <th style={S.th}>Assessment</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((d, i) => {
-            const barW = Math.round((d.sales / maxSales) * 140);
-            const isUp = d.assessment.includes("⬆");
-            const isDown = d.assessment.includes("⬇");
-            const barColor = isUp ? GREEN : isDown ? RED : TEAL;
-            return (
-              <tr key={d.dept}>
-                <td style={{ ...S.td, color: COLORS[i % COLORS.length], fontWeight: 600 }}>{d.dept}</td>
+    <div>
+      {/* AI Analysis card */}
+      <div style={{ ...S.card, marginBottom:"0.85rem", background:"#F8FAFF",
+        border:"1px solid #BFDBFE" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+          marginBottom: aiAnalysis?"0.6rem":"0" }}>
+          <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#1E5FCC" }}>
+            ◈ AI Department Analysis
+          </div>
+          <button onClick={analyzeWithAI} disabled={loading}
+            style={{ fontSize:"0.68rem", fontWeight:700, color:"#fff", background:"#1E5FCC",
+              border:"none", borderRadius:6, padding:"0.3rem 0.75rem", cursor:"pointer",
+              opacity:loading?0.6:1 }}>
+            {loading ? "Analyzing…" : aiAnalysis ? "↺ Refresh" : "Analyze"}
+          </button>
+        </div>
+        {aiAnalysis && (
+          <div style={{ fontSize:"0.73rem", color:TEXT, lineHeight:1.75, whiteSpace:"pre-wrap" }}>
+            {aiAnalysis}
+          </div>
+        )}
+      </div>
+
+      {/* Summary KPIs */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"0.6rem",
+        marginBottom:"0.85rem" }}>
+        <div style={S.kpi(TEAL)}>
+          <div style={S.kpiVal}>${(totalSales/1000000).toFixed(2)}M</div>
+          <div style={S.kpiLbl}>YTD Sales</div>
+        </div>
+        <div style={S.kpi(GREEN)}>
+          <div style={S.kpiVal}>${(totalGP/1000).toFixed(1)}K</div>
+          <div style={S.kpiLbl}>YTD GP$</div>
+        </div>
+        <div style={S.kpi(sorted[0]?.gpPct > 0.15 ? GREEN : AMBER)}>
+          <div style={S.kpiVal}>{(totalGP/totalSales*100).toFixed(1)}%</div>
+          <div style={S.kpiLbl}>Overall GP%</div>
+        </div>
+      </div>
+
+      {/* Department table */}
+      <div style={S.card}>
+        <table style={S.table}>
+          <thead>
+            <tr>
+              <th style={S.th}>Department</th>
+              <th style={{ ...S.th, width:130 }}>Sales Mix</th>
+              <th style={{ ...S.th, textAlign:"right" }}>YTD Sales</th>
+              <th style={{ ...S.th, textAlign:"right" }}>GP$</th>
+              <th style={{ ...S.th, textAlign:"right" }}>GP%</th>
+              <th style={{ ...S.th, textAlign:"right" }}>Lines</th>
+              <th style={S.th}>Assessment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((d,i) => (
+              <tr key={d.dept} style={{ background: i%2===0?"transparent":"#F8FAFC" }}>
+                <td style={{ ...S.td, fontWeight:600 }}>{d.dept}</td>
                 <td style={S.td}>
-                  <div style={{ width: barW, height: 6, background: barColor, borderRadius: 3, opacity: 0.8 }} />
+                  <div style={{ position:"relative", height:8, background:"#E2E8F0", borderRadius:4 }}>
+                    <div style={{ position:"absolute", top:0, left:0, height:8, borderRadius:4,
+                      width:`${Math.min(100,(d.sales/maxSales)*100)}%`,
+                      background: d.gpPct>0.20?"#059669":d.gpPct>0.12?"#0891B2":"#D97706" }} />
+                  </div>
+                  <div style={{ fontSize:"0.6rem", color:MUTED, marginTop:2 }}>
+                    {(d.sales/totalSales*100).toFixed(1)}% of total
+                  </div>
                 </td>
-                <td style={{ ...S.td, textAlign: "right" }}>{fmt(d.sales)}</td>
-                <td style={{ ...S.td, textAlign: "right" }}>{fmt(d.gp)}</td>
-                <td style={{ ...S.td, textAlign: "right", color: d.gpPct < 0.08 ? RED : d.gpPct > 0.15 ? GREEN : TEXT }}>{pct(d.gpPct)}</td>
-                <td style={{ ...S.td, textAlign: "right", color: MUTED }}>{d.lineItems.toLocaleString()}</td>
-                <td style={{ ...S.td, fontSize: "0.65rem", color: isUp ? GREEN : isDown ? RED : MUTED, maxWidth: 200 }}>{d.assessment}</td>
+                <td style={{ ...S.td, textAlign:"right", fontWeight:600 }}>
+                  ${d.sales>=1000000?(d.sales/1000000).toFixed(2)+"M":(d.sales/1000).toFixed(1)+"K"}
+                </td>
+                <td style={{ ...S.td, textAlign:"right" }}>
+                  ${d.gp>=1000?(d.gp/1000).toFixed(1)+"K":d.gp.toFixed(0)}
+                </td>
+                <td style={{ ...S.td, textAlign:"right",
+                  color: d.gpPct>0.20?GREEN:d.gpPct>0.12?TEAL:RED,
+                  fontWeight:700 }}>
+                  {(d.gpPct*100).toFixed(1)}%
+                </td>
+                <td style={{ ...S.td, textAlign:"right", color:MUTED }}>
+                  {(d.lineItems||0).toLocaleString()}
+                </td>
+                <td style={{ ...S.td, fontSize:"0.68rem",
+                  color: d.gpPct>0.20?"#059669":d.gpPct>0.12?"#0891B2":"#D97706" }}>
+                  {d.assessment}
+                </td>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
