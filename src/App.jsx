@@ -26,13 +26,40 @@ const COLORS = ["#1E5FCC","#2980D9","#1A9E5C","#D93025","#7C3AED","#D97706","#08
 const REPS   = ["Tiffany", "Larry", "Austin"];
 const REP_COLORS = { Tiffany: "#7C3AED", Larry: "#0891B2", Austin: "#D97706", House: "#059669", "Car Dealer": "#DC2626" };
 
-const FILE_SLOTS = [
-  { id: "master",     label: "⬡ Master Upload", desc: "Pulse_Master_Upload_Wxx.xlsx — uploads AR, CustomerComp, WTD, and all AD programs in one click", isMaster: true },
-  { id: "customers",  label: "Customer List",   desc: "Account list with salesperson assignment" },
-  { id: "ar",         label: "AR / Aging",      desc: "Balances · 30/60/90/120+ day aging (use Master Upload instead)" },
-  { id: "weekComp",   label: "Week Comp",       desc: "Week-to-Week Customer Comp by Department (use Master Upload instead)" },
-  { id: "sales",      label: "Sales Data",      desc: "Current & prior year sales — all years on one sheet" },
+const FILE_SLOT_GROUPS = [
+  {
+    label: "📦 Master Upload",
+    desc: "Upload everything at once for your weekly meeting",
+    slots: [
+      { id:"master", label:"⬡ Master Upload", desc:"Pulse_Master_Upload_Wxx.xlsx — AR, WTD, CustomerComp, all AD programs in one click", isMaster:true },
+    ]
+  },
+  {
+    label: "📊 Core Data",
+    desc: "Individual uploads for core sales data",
+    slots: [
+      { id:"customers", label:"Customer List", desc:"Account list with salesperson assignment" },
+      { id:"ar",        label:"AR / Aging",    desc:"Balances · 30/60/90/120+ day aging" },
+      { id:"weekComp",  label:"Week Comp",     desc:"Week-to-Week Customer Comp by Department" },
+      { id:"sales",     label:"Sales Data",    desc:"Current & prior year sales" },
+    ]
+  },
+  {
+    label: "🏆 AD Programs",
+    desc: "Upload individual AD program reports as they come in — no need to wait for master upload day",
+    slots: [
+      { id:"toyo",      label:"Toyo AD",        desc:"Associate Dealer report — paste or upload anytime" },
+      { id:"americus",  label:"Americus",        desc:"Month-end program update" },
+      { id:"ascenso",   label:"Ascenso",         desc:"HITS Sales Analysis — Sales by Customer (ASCENSO)" },
+      { id:"falkenPLT", label:"Falken PLT",      desc:"Falken Fanatic PLT quarterly report" },
+      { id:"falkenTBR", label:"Falken TBR",      desc:"Falken Fanatic TBR quarterly report" },
+      { id:"barnn",     label:"BF BARNN",        desc:"Bridgestone/Firestone BARNN dealer report" },
+      { id:"yokohama",  label:"Yokohama",        desc:"Yokohama dealer program — quarterly" },
+    ]
+  },
 ];
+// Flat list for backward-compat
+const FILE_SLOTS = FILE_SLOT_GROUPS.flatMap(g=>g.slots);
 
 
 // Car Dealer accounts mapped to primary rep by city dominance
@@ -1868,6 +1895,144 @@ export default function App() {
       return;
     }
 
+
+    // ── INDIVIDUAL AD PROGRAM UPLOADS ─────────────────────────────────────────
+    // Each reads first sheet of the uploaded file (not a named sheet)
+    function readFirstSheet(wb) {
+      return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:null });
+    }
+
+    if (slotId === "toyo") {
+      // Same format as Toyo sheet — filter Tifton rows
+      const rows = readFirstSheet(wb);
+      const result = {};
+      for (const row of rows) {
+        if (!row || !String(row[5]||"").includes("Tifton")) continue;
+        const toyoNum = String(row[2]||"").trim();
+        if (!toyoNum || toyoNum === "Number") continue;
+        result[toyoNum] = {
+          toyoNum, dealerName: String(row[3]||"").trim(),
+          pcr:{ primary:Number(row[6]||0), secondary:Number(row[7]||0), total:Number(row[8]||0),
+                pct:parseFloat(String(row[9]||"0").replace("%",""))||0 },
+          tbr:{ primary:Number(row[10]||0), secondary:Number(row[11]||0), total:Number(row[12]||0) },
+        };
+      }
+      if (Object.keys(result).length > 0) {
+        setFileData(prev=>({...prev, toyoData:result}));
+        setNotice(`✓ Toyo updated — ${Object.keys(result).length} Tifton dealers`);
+      } else setNotice("⚠ No Tifton dealers found in Toyo file — check Primary Dealer column");
+      setTimeout(()=>setNotice(""),5000);
+      const nd={...uploadDates,[slotId]:new Date().toISOString()};
+      setUploadDates(nd); try{localStorage.setItem("upload_dates",JSON.stringify(nd));}catch{}
+      return;
+    }
+
+    if (slotId === "americus") {
+      const rows = readFirstSheet(wb);
+      const result = {};
+      for (const row of rows) {
+        const dn = row[0];
+        if (!dn || typeof dn !== "number") continue;
+        const name = String(row[1]||"").trim();
+        if (!name || name.toLowerCase().includes("total")) continue;
+        result[String(dn)] = { dealerNum:dn, dealerName:name,
+          units2025:Number(row[6]||0), jan:Number(row[7]||0), feb:Number(row[8]||0),
+          mar:Number(row[9]||0), q1:Number(row[10]||0), apr:Number(row[11]||0),
+          may:Number(row[12]||0), jun:Number(row[13]||0), q2:Number(row[14]||0),
+          ytd:Number(row[15]||0), asOf:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}) };
+      }
+      if (Object.keys(result).length>0) { setFileData(prev=>({...prev,americusData:result}));
+        setNotice(`✓ Americus updated — ${Object.keys(result).length} dealers`); }
+      else setNotice("⚠ Americus file could not be parsed");
+      setTimeout(()=>setNotice(""),5000);
+      const nd={...uploadDates,[slotId]:new Date().toISOString()};
+      setUploadDates(nd); try{localStorage.setItem("upload_dates",JSON.stringify(nd));}catch{}
+      return;
+    }
+
+    if (slotId === "ascenso") {
+      const rows = readFirstSheet(wb);
+      const result = {};
+      for (const row of rows) {
+        const cn = row[0];
+        if (!cn || typeof cn !== "number") continue;
+        result[String(cn)] = { custNum:cn, name:String(row[1]||"").trim(),
+          qty:Number(row[3]||0), amount:Number(row[4]||0) };
+      }
+      if (Object.keys(result).length>0) { setFileData(prev=>({...prev,ascensoData:result}));
+        setNotice(`✓ Ascenso updated — ${Object.keys(result).length} customers, $${Object.values(result).reduce((s,r)=>s+r.amount,0).toLocaleString("en-US",{maximumFractionDigits:0})}`); }
+      else setNotice("⚠ Ascenso file could not be parsed");
+      setTimeout(()=>setNotice(""),5000);
+      const nd={...uploadDates,[slotId]:new Date().toISOString()};
+      setUploadDates(nd); try{localStorage.setItem("upload_dates",JSON.stringify(nd));}catch{}
+      return;
+    }
+
+    if (slotId === "falkenPLT" || slotId === "falkenTBR") {
+      const rows = readFirstSheet(wb);
+      const result = [];
+      for (const row of rows) {
+        const fid = row[0];
+        if (!fid || typeof fid !== "number") continue;
+        result.push({ fanId:fid, segment:String(row[1]||"").trim(), parentId:row[2],
+          dealer:String(row[3]||"").trim(), city:String(row[7]||"").trim(),
+          territory:String(row[9]||"").trim(),
+          q1:Number(row[10]||0), q2:Number(row[11]||0), q3:Number(row[12]||0),
+          q4:Number(row[13]||0), ytd:Number(row[14]||0) });
+      }
+      const key = slotId === "falkenPLT" ? "falkenPLT" : "falkenTBR";
+      if (result.length>0) { setFileData(prev=>({...prev,[key]:result}));
+        setNotice(`✓ Falken ${slotId==="falkenPLT"?"PLT":"TBR"} updated — ${result.length} dealers`); }
+      else setNotice(`⚠ Falken ${slotId==="falkenPLT"?"PLT":"TBR"} file could not be parsed`);
+      setTimeout(()=>setNotice(""),5000);
+      const nd={...uploadDates,[slotId]:new Date().toISOString()};
+      setUploadDates(nd); try{localStorage.setItem("upload_dates",JSON.stringify(nd));}catch{}
+      return;
+    }
+
+    if (slotId === "barnn") {
+      const rows = readFirstSheet(wb);
+      const result = { primary:[], secondary:[] };
+      for (const row of rows) {
+        const parent=row[0], acctNum=row[1], name=String(row[2]||"").trim();
+        if (!acctNum || typeof acctNum !== "number" || name.toLowerCase().includes("total")) continue;
+        const entry = { parent:String(parent||""), acctNum, name,
+          bs:Number(row[5]||0), fs:Number(row[8]||0), total:Number(row[15]||0),
+          role: String(parent)==="960788"?"Primary":"Secondary" };
+        if (String(parent)==="960788") result.primary.push(entry);
+        else result.secondary.push(entry);
+      }
+      const count = result.primary.length + result.secondary.length;
+      if (count>0) { setFileData(prev=>({...prev,barnnData:result}));
+        setNotice(`✓ BARNN updated — ${result.primary.length} primary, ${result.secondary.length} secondary accounts`); }
+      else setNotice("⚠ BARNN file could not be parsed");
+      setTimeout(()=>setNotice(""),5000);
+      const nd={...uploadDates,[slotId]:new Date().toISOString()};
+      setUploadDates(nd); try{localStorage.setItem("upload_dates",JSON.stringify(nd));}catch{}
+      return;
+    }
+
+    if (slotId === "yokohama") {
+      const rows = readFirstSheet(wb);
+      const result = [];
+      for (const row of rows) {
+        const dn = row[0];
+        if (!dn || typeof dn !== "number") continue;
+        result.push({ dealerNum:dn, dealerName:String(row[1]||"").trim(),
+          salesRep:String(row[2]||"").trim(), primary:Number(row[4]||0),
+          priPct:parseFloat(String(row[5]||"0").replace("%",""))||0,
+          hasSecondary:String(row[6]||"").trim().toUpperCase()==="Y",
+          secondary:Number(row[8]||0), qtd:Number(row[10]||0), toNext:Number(row[11]||0) });
+      }
+      if (result.length>0) { setFileData(prev=>({...prev,yokohamaData:result}));
+        setNotice(`✓ Yokohama updated — ${result.length} dealers`); }
+      else setNotice("⚠ Yokohama file could not be parsed");
+      setTimeout(()=>setNotice(""),5000);
+      const nd={...uploadDates,[slotId]:new Date().toISOString()};
+      setUploadDates(nd); try{localStorage.setItem("upload_dates",JSON.stringify(nd));}catch{}
+      return;
+    }
+
     // ── LEGACY INDIVIDUAL FILE UPLOADS ────────────────────────────────────
     if (slotId === "weekComp") {
       parsed = parseWeekCompWorkbook(wb);
@@ -2187,46 +2352,70 @@ export default function App() {
 }
 
 // ── FileSetup ─────────────────────────────────────────────────────────────────
-function FileSetup({ fileData, onUpload, onClear }) {
+function FileSetup({ fileData, onUpload, uploadDates }) {
+  const fmt = iso => iso ? new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : null;
+
   return (
     <div>
-      <div style={{ ...S.card, marginBottom: "1.25rem" }}>
-        <div style={{ fontSize: "0.7rem", color: MUTED, marginBottom: "0.5rem", letterSpacing: "0.1em" }}>FILE SLOTS</div>
-        <div style={{ fontSize: "0.72rem", color: TEXT, lineHeight: 1.6 }}>
-          Upload Excel files to each slot. <span style={{ color: AMBER }}>Sales Data</span> and <span style={{ color: AMBER }}>Week Comp</span> are pre-loaded — upload a new file any week to refresh. When 2027 data is ready, just upload the new sheet and it's detected automatically.
-        </div>
+      <div style={{ fontSize:"0.78rem", fontWeight:700, color:TEXT, marginBottom:"1rem" }}>
+        ⬡ Data Upload
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "0.75rem" }}>
-        {FILE_SLOTS.map(slot => {
-          const loaded = !!fileData[slot.id];
-          return (
-            <div key={slot.id} style={{ ...S.card, borderLeft: `3px solid ${loaded ? GREEN : BORDER}`, marginBottom: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ fontSize: "0.78rem", fontWeight: 600, color: loaded ? GREEN : TEXT, marginBottom: 4 }}>{slot.label}</div>
-                  <div style={{ fontSize: "0.68rem", color: MUTED }}>{slot.desc}</div>
+      {FILE_SLOT_GROUPS.map(group => (
+        <div key={group.label} style={{ marginBottom:"1.25rem" }}>
+          {/* Group header */}
+          <div style={{ display:"flex", alignItems:"baseline", gap:8, marginBottom:"0.45rem" }}>
+            <div style={{ fontSize:"0.73rem", fontWeight:700, color:TEXT }}>{group.label}</div>
+            <div style={{ fontSize:"0.63rem", color:MUTED }}>{group.desc}</div>
+          </div>
+          {/* Slots in this group */}
+          <div style={{ display:"flex", flexDirection:"column", gap:"0.45rem" }}>
+            {group.slots.map(slot => {
+              const uploaded = uploadDates?.[slot.id];
+              return (
+                <div key={slot.id}
+                  style={{ ...S.card,
+                    border: slot.isMaster ? "2px solid #1E5FCC" : `1px solid ${BORDER}`,
+                    background: slot.isMaster ? "#EFF6FF" : undefined,
+                    padding:"0.6rem 0.85rem",
+                    display:"flex", justifyContent:"space-between", alignItems:"center",
+                    gap:8, flexWrap:"wrap" }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:"0.75rem", fontWeight:700,
+                      color: slot.isMaster ? "#1E5FCC" : TEXT }}>{slot.label}</div>
+                    <div style={{ fontSize:"0.63rem", color:MUTED, marginTop:1 }}>{slot.desc}</div>
+                    {uploaded && (
+                      <div style={{ fontSize:"0.6rem", color:"#059669", marginTop:2 }}>
+                        ✓ Uploaded {fmt(uploaded)}
+                      </div>
+                    )}
+                  </div>
+                  <label style={{ cursor:"pointer", flexShrink:0 }}>
+                    <div style={{ fontSize:"0.7rem", fontWeight:700,
+                      color: slot.isMaster ? "#fff" : "#1E5FCC",
+                      background: slot.isMaster ? "#1E5FCC" : "#EFF6FF",
+                      border:`1px solid ${slot.isMaster?"#1E5FCC":"#BFDBFE"}`,
+                      borderRadius:6, padding:"0.35rem 0.85rem",
+                      whiteSpace:"nowrap", userSelect:"none" }}>
+                      {uploaded ? "↺ Re-upload" : "↑ Upload"}
+                    </div>
+                    <input type="file" accept=".xlsx,.xls" style={{ display:"none" }}
+                      onChange={e => {
+                        const file = e.target.files[0]; if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = ev => {
+                          const wb = XLSX.read(ev.target.result, { type:"array" });
+                          onUpload(slot.id, wb, file.name);
+                        };
+                        reader.readAsArrayBuffer(file);
+                        e.target.value = "";
+                      }} />
+                  </label>
                 </div>
-                <span style={{ fontSize: "0.65rem", color: loaded ? GREEN : MUTED }}>{loaded ? "✓ Loaded" : "Empty"}</span>
-              </div>
-              <label style={{ display: "block", marginTop: "0.75rem" }}>
-                <span style={{ ...S.btn(AMBER), display: "inline-block", cursor: "pointer", fontSize: "0.65rem" }}>Upload .xlsx</span>
-                <input type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={e => {
-                  const file = e.target.files[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = ev => {
-                    const wb = XLSX.read(ev.target.result, { type: "array" });
-                    onUpload(slot.id, wb, file.name);
-                  };
-                  reader.readAsArrayBuffer(file);
-                  e.target.value = "";
-                }} />
-              </label>
-            </div>
-          );
-        })}
-      </div>
-
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -2467,18 +2656,19 @@ function MSRTab() {
       return saved ? JSON.parse(saved) : SEED_MSR;
     } catch { return SEED_MSR; }
   });
-  const [selected, setSelected] = useState(meetings[0]?.id || null);
-  const [showUpload, setShowUpload] = useState(false);
-  const [transcript, setTranscript] = useState("");
+  const [showUpload, setShowUpload]   = useState(false);
+  const [transcript, setTranscript]   = useState("");
   const [meetingDate, setMeetingDate] = useState(new Date().toISOString().slice(0,10));
-  const [generating, setGenerating] = useState(false);
+  const [generating, setGenerating]   = useState(false);
+  const [showPrevious, setShowPrevious] = useState(false);
 
   function saveMeetings(updated) {
     setMeetings(updated);
     try { localStorage.setItem(MSR_KEY, JSON.stringify(updated)); } catch {}
   }
 
-  const current = meetings.find(m => m.id === selected);
+  // Latest meeting = first in array; rest are archived
+  const [current, ...archived] = meetings.sort((a,b) => new Date(b.date)-new Date(a.date));
 
   async function generateSummary() {
     if (!transcript.trim()) return;
@@ -2488,68 +2678,163 @@ function MSRTab() {
 TRANSCRIPT:
 ${transcript.slice(0, 12000)}
 
-Generate a structured meeting summary as JSON only (no markdown):
+Generate a structured meeting summary as JSON only (no markdown, no backticks):
 {
   "headline": "One sentence capturing the most important takeaway",
-  "weekNum": <week number if mentioned, or null>,
+  "weekNum": <week number if mentioned or null>,
   "sections": [
-    {
-      "label": "emoji + Section Title",
-      "color": "#hexcolor",
-      "bullets": ["specific bullet point", "another point"]
-    }
+    { "label": "emoji + Section Title", "color": "#hexcolor", "bullets": ["bullet", "bullet"] }
   ],
-  "tiftonNotes": "Any Tifton-specific items, action items, or callouts from the transcript",
+  "tiftonNotes": "Any Tifton-specific items, action items, or callouts",
+  "briefSummary": "2-3 sentence plain-english recap of what happened this week vs last week",
   "createdBy": "AI Summary"
 }
-
-Use these section labels as relevant: 📊 Performance, 🏆 Departments, 📅 YTD, 📦 Inventory, 💰 AR Collections, 🎯 Promotions, 🔑 Key Directives, 👥 Rep Updates.
-Colors: use #DC2626 red for down/bad, #059669 green for up/good, #0891B2 teal for info, #D97706 amber for caution, #7C3AED purple for inventory, #1E5FCC blue for strategy.
+Section labels: 📊 Performance, 🏆 Departments, 📅 YTD, 📦 Inventory, 💰 AR Collections, 🎯 Promotions, 🔑 Key Directives.
+Colors: red=#DC2626 (down), green=#059669 (up), teal=#0891B2 (info), amber=#D97706 (caution), purple=#7C3AED (inventory), blue=#1E5FCC (strategy).
 Be specific — use actual numbers, names, and account names from the transcript.`;
 
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "x-api-key":ANTHROPIC_KEY,
+          "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
         body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:2000,
           messages:[{role:"user",content:prompt}] })
       });
       const data = await res.json();
-      const raw = data.content?.[0]?.text || "{}";
+      const raw  = data.content?.[0]?.text || "{}";
       const parsed = JSON.parse(raw.replace(/```json|```/g,"").trim());
       const newMeeting = {
-        id:       `msr_${Date.now()}`,
-        date:     meetingDate,
-        weekNum:  parsed.weekNum || null,
-        title:    `W${parsed.weekNum || "?"} Review — ${new Date(meetingDate).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}`,
-        headline: parsed.headline || "",
-        sections: parsed.sections || [],
+        id:          `msr_${Date.now()}`,
+        date:        meetingDate,
+        weekNum:     parsed.weekNum || null,
+        title:       `W${parsed.weekNum||"?"} Review — ${new Date(meetingDate).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}`,
+        headline:    parsed.headline || "",
+        sections:    parsed.sections || [],
         tiftonNotes: parsed.tiftonNotes || "",
-        createdBy: "AI Summary",
+        briefSummary:parsed.briefSummary || "",
+        createdBy:   "AI Summary",
       };
-      const updated = [newMeeting, ...meetings];
-      saveMeetings(updated);
-      setSelected(newMeeting.id);
+      saveMeetings([newMeeting, ...meetings]);
       setShowUpload(false);
       setTranscript("");
-    } catch(e) {
-      alert(`Summary failed: ${e.message}`);
-    }
+    } catch(e) { alert(`Summary failed: ${e.message}`); }
     setGenerating(false);
+  }
+
+  function deleteMeeting(id) {
+    if (!window.confirm("Remove this meeting summary?")) return;
+    saveMeetings(meetings.filter(m=>m.id!==id));
+  }
+
+  function MeetingCard({ m, compact=false }) {
+    const [open, setOpen] = useState(!compact);
+    return (
+      <div style={{ ...S.card, marginBottom: compact?"0.5rem":"1rem",
+        border: compact?`1px solid ${BORDER}`:"none",
+        padding: compact?"0.65rem 0.85rem":undefined }}>
+        {compact && (
+          <div onClick={()=>setOpen(!open)}
+            style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+              cursor:"pointer", userSelect:"none" }}>
+            <div>
+              <span style={{ fontSize:"0.75rem", fontWeight:700, color:TEXT }}>{m.title}</span>
+              {m.briefSummary && (
+                <div style={{ fontSize:"0.68rem", color:MUTED, marginTop:2,
+                  maxWidth:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {m.briefSummary}
+                </div>
+              )}
+            </div>
+            <span style={{ fontSize:"0.75rem", color:MUTED, marginLeft:8, flexShrink:0 }}>
+              {open?"▾":"▸"}
+            </span>
+          </div>
+        )}
+        {(!compact || open) && (
+          <div style={{ marginTop: compact&&open?"0.65rem":0 }}>
+            {/* Headline card */}
+            {!compact && (
+              <div style={{ padding:"0.75rem 1rem",
+                background:"linear-gradient(135deg,#EFF6FF,#F0FDF4)",
+                border:"1px solid #BFDBFE", borderRadius:8, marginBottom:"1rem" }}>
+                <div style={{ fontSize:"0.63rem", color:"#1E5FCC", fontWeight:700,
+                  textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4 }}>
+                  {m.title} · {new Date(m.date).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}
+                </div>
+                <div style={{ fontSize:"0.82rem", fontWeight:700, color:TEXT, lineHeight:1.6 }}>
+                  {m.headline}
+                </div>
+              </div>
+            )}
+
+            {/* Brief summary (compact mode shows below toggle) */}
+            {compact && m.briefSummary && (
+              <div style={{ fontSize:"0.73rem", color:TEXT, lineHeight:1.65,
+                marginBottom:"0.65rem", padding:"0.5rem 0.65rem",
+                background:"#F8FAFC", borderRadius:6 }}>
+                {m.briefSummary}
+              </div>
+            )}
+
+            {/* Sections */}
+            <div style={{ display:"flex", flexDirection:"column", gap:"0.6rem", marginBottom:"0.75rem" }}>
+              {(m.sections||[]).map((sec,i) => (
+                <div key={i} style={{ ...S.card, borderLeft:`4px solid ${sec.color}`,
+                  padding:"0.65rem 0.85rem" }}>
+                  <div style={{ fontSize:"0.68rem", fontWeight:700, color:sec.color,
+                    textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"0.4rem" }}>
+                    {sec.label}
+                  </div>
+                  {(sec.bullets||[]).map((b,j)=>(
+                    <div key={j} style={{ display:"flex", gap:8, fontSize:"0.74rem",
+                      color:TEXT, lineHeight:1.65, marginBottom:2 }}>
+                      <span style={{ color:sec.color, flexShrink:0 }}>▸</span>
+                      <span>{b}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Tifton notes */}
+            {m.tiftonNotes && (
+              <div style={{ ...S.card, background:"#FFFBEB", borderLeft:`4px solid ${AMBER}`,
+                padding:"0.65rem 0.85rem", marginBottom:"0.5rem" }}>
+                <div style={{ fontSize:"0.67rem", fontWeight:700, color:AMBER,
+                  textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"0.4rem" }}>
+                  📍 Tifton Notes
+                </div>
+                <div style={{ fontSize:"0.74rem", color:TEXT, lineHeight:1.7 }}>{m.tiftonNotes}</div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+              fontSize:"0.6rem", color:MUTED }}>
+              <span>{m.createdBy} · {new Date(m.date).toLocaleDateString()}</span>
+              <button onClick={()=>deleteMeeting(m.id)}
+                style={{ fontSize:"0.6rem", color:RED, background:"none",
+                  border:"none", cursor:"pointer", padding:0 }}>
+                × Remove
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
     <div>
       {/* Header */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"0.85rem", flexWrap:"wrap", gap:8 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+        marginBottom:"0.85rem", flexWrap:"wrap", gap:8 }}>
         <div>
           <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#1E5FCC" }}>📋 Monday Sales Review</div>
-          <div style={{ fontSize:"0.68rem", color:MUTED }}>{meetings.length} meeting{meetings.length!==1?"s":""} on record</div>
+          <div style={{ fontSize:"0.68rem", color:MUTED }}>
+            {meetings.length} meeting{meetings.length!==1?"s":""} · {archived.length} archived
+          </div>
         </div>
         <button onClick={()=>setShowUpload(!showUpload)}
           style={{ ...S.btn("#1E5FCC"), fontSize:"0.7rem", fontWeight:700 }}>
@@ -2560,104 +2845,76 @@ Be specific — use actual numbers, names, and account names from the transcript
       {/* Upload form */}
       {showUpload && (
         <div style={{ ...S.card, border:"2px solid #1E5FCC", marginBottom:"1rem" }}>
-          <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#1E5FCC", marginBottom:"0.75rem" }}>◈ Add Meeting Summary</div>
+          <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#1E5FCC", marginBottom:"0.75rem" }}>
+            ◈ Add Meeting Summary
+          </div>
           <div style={{ marginBottom:"0.6rem" }}>
             <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Meeting Date</div>
             <input type="date" value={meetingDate} onChange={e=>setMeetingDate(e.target.value)}
-              style={{ background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT, padding:"0.4rem 0.65rem", borderRadius:6, fontSize:"0.75rem" }} />
+              style={{ background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
+                padding:"0.4rem 0.65rem", borderRadius:6, fontSize:"0.75rem" }} />
           </div>
           <div style={{ marginBottom:"0.75rem" }}>
-            <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>Paste meeting transcript or notes</div>
+            <div style={{ fontSize:"0.65rem", color:MUTED, marginBottom:3 }}>
+              Paste meeting transcript or notes
+            </div>
             <textarea value={transcript} onChange={e=>setTranscript(e.target.value)}
-              placeholder="Paste the full meeting transcript here. AI will extract key points, numbers, action items, and Tifton-specific notes..."
-              rows={8}
-              style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`, color:TEXT,
-                padding:"0.5rem 0.75rem", borderRadius:6, fontSize:"0.75rem", resize:"vertical",
-                outline:"none", boxSizing:"border-box", lineHeight:1.7 }}
+              placeholder="Paste the full meeting transcript here..."
+              rows={7}
+              style={{ width:"100%", background:"#FFFFFF", border:`1px solid ${BORDER}`,
+                color:TEXT, padding:"0.5rem 0.75rem", borderRadius:6, fontSize:"0.75rem",
+                resize:"vertical", outline:"none", boxSizing:"border-box", lineHeight:1.7 }}
               onFocus={e=>e.target.style.borderColor="#1E5FCC"}
               onBlur={e=>e.target.style.borderColor=BORDER}
             />
-            <div style={{ fontSize:"0.62rem", color:MUTED, marginTop:3 }}>{transcript.length.toLocaleString()} characters</div>
+            <div style={{ fontSize:"0.62rem", color:MUTED, marginTop:3 }}>
+              {transcript.length.toLocaleString()} characters
+            </div>
           </div>
           <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-            <button onClick={()=>{setShowUpload(false);setTranscript("");}} style={{ ...S.btn(MUTED) }}>Cancel</button>
+            <button onClick={()=>{setShowUpload(false);setTranscript("");}}
+              style={S.btn(MUTED)}>Cancel</button>
             <button onClick={generateSummary} disabled={!transcript.trim()||generating}
               style={{ ...S.btn("#1E5FCC"), background:"#1E5FCC", color:"#fff",
                 opacity:!transcript.trim()||generating?0.5:1 }}>
-              {generating ? "◈ Analyzing…" : "◈ Generate Summary"}
+              {generating?"◈ Analyzing…":"◈ Generate Summary"}
             </button>
           </div>
         </div>
       )}
 
-      {/* Meeting selector */}
-      {meetings.length > 1 && (
-        <div style={{ display:"flex", gap:5, marginBottom:"0.85rem", flexWrap:"wrap" }}>
-          {meetings.map(m => (
-            <button key={m.id} onClick={()=>setSelected(m.id)}
-              style={{ fontSize:"0.68rem", fontWeight:selected===m.id?700:400,
-                color:selected===m.id?"#fff":"#1E5FCC",
-                background:selected===m.id?"#1E5FCC":"#EFF6FF",
-                border:`1px solid ${selected===m.id?"#1E5FCC":"#BFDBFE"}`,
-                borderRadius:6, padding:"0.25rem 0.7rem", cursor:"pointer", whiteSpace:"nowrap" }}>
-              {m.title}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Latest meeting — always fully expanded */}
+      {current && <MeetingCard m={current} compact={false} />}
 
-      {/* Meeting content */}
-      {current && (
+      {/* Previous meetings — collapsible */}
+      {archived.length > 0 && (
         <div>
-          {/* Headline */}
-          <div style={{ padding:"0.75rem 1rem", background:"linear-gradient(135deg,#EFF6FF,#F0FDF4)",
-            border:"1px solid #BFDBFE", borderRadius:8, marginBottom:"1rem" }}>
-            <div style={{ fontSize:"0.65rem", color:"#1E5FCC", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4 }}>
-              {current.title} · {new Date(current.date).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}
-            </div>
-            <div style={{ fontSize:"0.82rem", fontWeight:700, color:TEXT, lineHeight:1.6 }}>{current.headline}</div>
-          </div>
-
-          {/* Sections */}
-          <div style={{ display:"flex", flexDirection:"column", gap:"0.75rem", marginBottom:"1rem" }}>
-            {(current.sections||[]).map((sec, i) => (
-              <div key={i} style={{ ...S.card, borderLeft:`4px solid ${sec.color}`, padding:"0.75rem 1rem" }}>
-                <div style={{ fontSize:"0.72rem", fontWeight:700, color:sec.color,
-                  textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"0.5rem" }}>
-                  {sec.label}
-                </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-                  {(sec.bullets||[]).map((b, j) => (
-                    <div key={j} style={{ display:"flex", gap:8, fontSize:"0.76rem", color:TEXT, lineHeight:1.65 }}>
-                      <span style={{ color:sec.color, flexShrink:0, marginTop:2 }}>▸</span>
-                      <span>{b}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Tifton-specific notes */}
-          {current.tiftonNotes && (
-            <div style={{ ...S.card, background:"#FFFBEB", borderLeft:`4px solid ${AMBER}`, padding:"0.75rem 1rem" }}>
-              <div style={{ fontSize:"0.7rem", fontWeight:700, color:AMBER,
-                textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"0.5rem" }}>
-                📍 Tifton Notes
-              </div>
-              <div style={{ fontSize:"0.76rem", color:TEXT, lineHeight:1.7 }}>{current.tiftonNotes}</div>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div style={{ fontSize:"0.62rem", color:MUTED, marginTop:"0.75rem", textAlign:"right" }}>
-            {current.createdBy} · {new Date(current.date).toLocaleDateString()}
-          </div>
+          <button onClick={()=>setShowPrevious(!showPrevious)}
+            style={{ width:"100%", display:"flex", justifyContent:"space-between",
+              alignItems:"center", padding:"0.6rem 0.85rem",
+              background:"#F8FAFC", border:`1px solid ${BORDER}`,
+              borderRadius:8, cursor:"pointer", marginBottom: showPrevious?"0.5rem":0,
+              fontSize:"0.75rem", fontWeight:700, color:TEXT, userSelect:"none" }}>
+            <span>
+              {showPrevious?"▾":"▸"}&nbsp; Previous Meetings
+              <span style={{ fontSize:"0.65rem", color:MUTED, fontWeight:400, marginLeft:8 }}>
+                {archived.length} archived
+              </span>
+            </span>
+            <span style={{ fontSize:"0.65rem", color:MUTED, fontWeight:400 }}>
+              {archived.length > 0 && new Date(archived[0].date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}
+              {archived.length > 1 && ` – ${new Date(archived[archived.length-1].date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}`}
+            </span>
+          </button>
+          {showPrevious && archived.map(m => (
+            <MeetingCard key={m.id} m={m} compact={true} />
+          ))}
         </div>
       )}
     </div>
   );
 }
+
 
 function OverviewTab({ weekComp, onAskAI, onCustomerClick, customers }) {
   const [subTab, setSubTab] = useState("weekcomp");
