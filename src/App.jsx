@@ -529,85 +529,95 @@ function parseMasterStatesboro(wb) {
 }
 
 // ── WTD sheet ─────────────────────────────────────────────────────────────────
-// Parses all three sections: Tifton depts, Branch comparison, Byron depts
-// Analysis (Metric/Commentary) is generated from raw numbers — not required in the sheet
 function parseMasterWTD(wb) {
   if (!wb.Sheets["WTD"]) return null;
   const rows = getSheetRows(wb, "WTD", 0);
 
-  const BRANCHES = {"1 - BYRON":"Byron","2 - TIFTON":"Tifton","3 - STATESBORO":"Statesboro","5 - ATHENS":"Athens","TOTAL":"Total"};
-  const branchData = {};
+  const BRANCH_KEYS = {
+    "1 - BYRON":     "Byron",
+    "2 - TIFTON":    "Tifton",
+    "3 - STATESBORO":"Statesboro",
+    "5 - ATHENS":    "Athens",
+    "TOTAL":         "Total",
+  };
+  const branchData  = {};
   const tiftonDepts = [];
   const byronDepts  = [];
-  let   section     = null;   // "tifton" | "branch" | "byron"
+  let section = null;
 
-  function pct(v) { return typeof v==="string" ? parseFloat(v.replace(/[%$,]/g,""))||0 : Number(v||0); }
-  function num(v) { return typeof v==="string" ? parseFloat(v.replace(/[$,]/g,""))||0 : Number(v||0); }
+  function num(v) { return typeof v==="string" ? parseFloat(v.replace(/[$,%]/g,""))||0 : Number(v||0); }
 
-  function autoMetric(s1, s2, gp1, gp2) {
-    const salesChg = s2 - s1;
-    const gpChg    = gp2 - gp1;
-    const gpPct2   = s2 > 0 ? gp2/s2 : 0;
-    const gpPct1   = s1 > 0 ? gp1/s1 : 0;
-    if (salesChg > 0 && gpChg > 0)   return "★ Growth + GP up";
-    if (salesChg > 0 && gpChg < 0)   return gpPct2 < gpPct1 - 0.03 ? "★ Growth + margin compression" : "✓ Growth";
-    if (salesChg < 0 && Math.abs(salesChg) > 5000) return "⚠ Largest $ loss";
-    if (salesChg < 0)                 return "⚠ Decline";
+  function autoMetric(s1, s2, g1, g2) {
+    const salesChg=s2-s1, gpChg=g2-g1;
+    const gp1pct=s1>0?g1/s1:0, gp2pct=s2>0?g2/s2:0;
+    if (salesChg>0 && gpChg>0)  return "★ Growth + GP up";
+    if (salesChg>0 && gpChg<0)  return gp2pct<gp1pct-0.03?"★ Growth + margin compression":"✓ Growth";
+    if (salesChg<0 && Math.abs(salesChg)>5000) return "⚠ Largest $ loss";
+    if (salesChg<0) return "⚠ Decline";
     return "→ Flat";
   }
 
-  function autoComment(dept, s1, s2, gp1, gp2) {
-    const sDelta = s2 - s1;
-    const sPct   = s1 > 0 ? ((s2-s1)/s1*100).toFixed(1) : "N/A";
-    const gpChg  = gp2 - gp1;
-    const gpPct  = gpChg !== 0 ? (Math.abs(gpChg/Math.max(gp1,1))*100).toFixed(1) : 0;
-    const gpPct1 = s1>0?(gp1/s1*100).toFixed(1):"0";
-    const gpPct2 = s2>0?(gp2/s2*100).toFixed(1):"0";
-    const dir    = sDelta >= 0 ? `up ${sPct}%` : `down ${Math.abs(sPct)}%`;
-    return `${dept}: Revenue ${dir} ($${Math.abs(sDelta).toLocaleString("en-US",{maximumFractionDigits:0})}). GP$ ${gpChg>=0?"up":"down"} ${gpPct}%. Margin ${gpPct1}%→${gpPct2}%.`;
+  function autoComment(dept, s1, s2, g1, g2) {
+    const sDelta=s2-s1;
+    const sPct=s1>0?((s2-s1)/s1*100).toFixed(1):"N/A";
+    const gpChg=g2-g1, gpPctChg=Math.max(g1,1)>0?(Math.abs(gpChg)/Math.max(g1,1)*100).toFixed(1):0;
+    const gp1=s1>0?(g1/s1*100).toFixed(1):"0", gp2=s2>0?(g2/s2*100).toFixed(1):"0";
+    return `${dept}: Revenue ${sDelta>=0?"up":"down"} ${Math.abs(sPct)}% ($${Math.abs(sDelta).toLocaleString("en-US",{maximumFractionDigits:0})}). GP$ ${gpChg>=0?"up":"down"} ${gpPctChg}%. Margin ${gp1}%→${gp2}%.`;
   }
 
   for (const row of rows) {
-    const cell0 = String(row[0] || "").trim().toUpperCase();
+    const raw0  = String(row[0] || "").trim();
+    const cell0 = raw0.toUpperCase();
 
-    // Detect section headers
-    if (cell0 === "TIFTON" || cell0.includes("TIFTON")) { section = "tifton"; continue; }
-    if (cell0 === "BYRON"  || cell0.includes("BYRON"))  { section = "byron";  continue; }
-    if (cell0 === "LOCATION" || cell0 === "BRANCH")     { section = "branch"; continue; }
-    // Detect branch comparison data rows
-    const branchKey = Object.keys(BRANCHES).find(k => cell0.includes(k.toUpperCase()) || cell0 === k.toUpperCase());
-    if (branchKey && section !== "tifton" && section !== "byron") { section = "branch"; }
-
-    // Parse branch comparison rows
-    const branchName = BRANCHES[Object.keys(BRANCHES).find(k => String(row[0]||"").trim().toUpperCase() === k.toUpperCase() || String(row[0]||"").trim().includes(k))];
-    if (branchName && branchName !== "Total") {
-      const s1 = num(row[1]), s2 = num(row[2]);
-      const g1 = num(row[6]||row[5]), g2 = num(row[7]||row[6]);
-      branchData[branchName] = { sales2025:s1, sales2026:s2, gp2025:g1, gp2026:g2,
-        salesChange: s2-s1, salesChangePct: s1>0?(s2-s1)/s1:0,
-        gpChange: g2-g1, metric: autoMetric(s1,s2,g1,g2) };
+    // ── 1. BRANCH DATA — check exact match first (before section headers) ────
+    const branchKey = Object.keys(BRANCH_KEYS).find(k => cell0 === k.toUpperCase());
+    if (branchKey) {
+      const bName = BRANCH_KEYS[branchKey];
+      if (bName !== "Total") {
+        const s1=num(row[1]), s2=num(row[2]);
+        const g1=num(row[5]), g2=num(row[6]);  // GP$ Range 1 = col5, Range 2 = col6
+        branchData[bName] = {
+          sales2025: s1, sales2026: s2,
+          gp2025:    g1, gp2026:    g2,
+          salesChange:    s2-s1,
+          salesChangePct: s1>0?(s2-s1)/s1:0,
+          metric: autoMetric(s1,s2,g1,g2),
+        };
+      }
       continue;
     }
 
-    // Parse dept rows (Tifton or Byron section)
-    const dept = String(row[0]||"").trim();
-    if (!dept || dept.length < 3) continue;
-    if (dept.toUpperCase().includes("SUBTOTAL") || dept.toUpperCase().includes("TOTAL")) continue;
-    if (dept.toUpperCase() === "DEPARTMENT") continue;  // header row
+    // ── 2. SECTION HEADERS — only match the ① ② ③ structured headers ────────
+    if (raw0.startsWith("①") || (cell0.includes("TIFTON") && cell0.includes("DEPARTMENT"))) {
+      section = "tifton"; continue;
+    }
+    if (raw0.startsWith("②") || cell0.includes("BRANCH COMPARISON")) {
+      section = "branch"; continue;
+    }
+    if (raw0.startsWith("③") || (cell0.includes("BYRON") && cell0.includes("DEPARTMENT"))) {
+      section = "byron"; continue;
+    }
 
-    const s1=num(row[1]), s2=num(row[2]), g1=num(row[6]||row[5]), g2=num(row[7]||row[6]);
+    // ── 3. SKIP header rows, empty rows, subtotal rows ────────────────────────
+    if (!raw0 || raw0.length < 3) continue;
+    if (cell0 === "DEPARTMENT" || cell0 === "BRANCH" || cell0 === "LOCATION") continue;
+    if (cell0.includes("SUBTOTAL")) continue;
+
+    // ── 4. DEPARTMENT ROWS (Tifton or Byron sections) ─────────────────────────
+    const s1=num(row[1]), s2=num(row[2]);
     if (s1===0 && s2===0) continue;
-
-    const entry = { dept, sales2025:s1, sales2026:s2, gp2025:g1, gp2026:g2,
+    const g1=num(row[5]), g2=num(row[6]);
+    const entry = {
+      dept: raw0,
+      sales2025:s1, sales2026:s2, gp2025:g1, gp2026:g2,
       salesChange:s2-s1, salesChangePct:s1>0?(s2-s1)/s1:0,
       gpChange:g2-g1, gpChangePct:g1>0?(g2-g1)/g1:0,
       gpPct2025:s1>0?g1/s1:0, gpPct2026:s2>0?g2/s2:0,
-      // Use col N if provided, else generate
-      metric:   String(row[13]||"").trim() || autoMetric(s1,s2,g1,g2),
-      comment:  String(row[14]||"").trim() || autoComment(dept,s1,s2,g1,g2),
+      metric:  String(row[13]||"").trim() || autoMetric(s1,s2,g1,g2),
+      comment: String(row[14]||"").trim() || autoComment(raw0,s1,s2,g1,g2),
     };
-    if (section === "tifton") tiftonDepts.push(entry);
-    else if (section === "byron") byronDepts.push(entry);
+    if (section==="tifton") tiftonDepts.push(entry);
+    else if (section==="byron") byronDepts.push(entry);
   }
 
   return {
@@ -616,6 +626,7 @@ function parseMasterWTD(wb) {
     byronDepts:  byronDepts.length  > 0 ? byronDepts  : null,
   };
 }
+
 
 // ── AD Programs ──────────────────────────────────────────────────────────────
 function parseMasterToyo(wb) {
