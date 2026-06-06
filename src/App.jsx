@@ -1566,7 +1566,34 @@ Keep it concise and actionable, written for a sales manager.` }]
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null); // logged-in user object
   const [tab, setTab] = useState("overview");
-  const [fileData, setFileData] = useState({ weekComp: SEED_WEEK_COMP, customers: SEED_CUSTOMERS, ar: SEED_AR });
+  const [fileData, setFileData] = useState(() => {
+    // Load persisted data from localStorage, fall back to seeds
+    let weekComp = SEED_WEEK_COMP;
+    let ar = SEED_AR;
+    let adData = {};
+    try {
+      const savedWeeks = localStorage.getItem("pulse_weeks");
+      if (savedWeeks) {
+        const parsed = JSON.parse(savedWeeks);
+        // Merge saved weeks on top of seed weeks
+        const mergedWeeks = [...SEED_WEEK_COMP.weeks];
+        parsed.forEach(w => {
+          const idx = mergedWeeks.findIndex(s => s.week === w.week);
+          if (idx >= 0) mergedWeeks[idx] = w;
+          else mergedWeeks.push(w);
+        });
+        mergedWeeks.sort((a,b) => a.week - b.week);
+        weekComp = { ...SEED_WEEK_COMP, weeks: mergedWeeks };
+      }
+      const savedAP = localStorage.getItem("pulse_action_plan");
+      if (savedAP) weekComp = { ...weekComp, actionPlan: JSON.parse(savedAP) };
+      const savedAR = localStorage.getItem("pulse_ar_data");
+      if (savedAR) ar = JSON.parse(savedAR);
+      const savedAD = localStorage.getItem("pulse_ad_data");
+      if (savedAD) adData = JSON.parse(savedAD);
+    } catch {}
+    return { weekComp, customers: SEED_CUSTOMERS, ar, ...adData };
+  });
   const [notice, setNotice] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
   const [custTabs, setCustTabs] = useState([]); // open customer detail tabs, max 10
@@ -1822,6 +1849,11 @@ export default function App() {
           if (idx >= 0) mergedWeeks[idx] = newWeekEntry;
           else mergedWeeks.push(newWeekEntry);
           mergedWeeks.sort((a,b) => a.week - b.week);
+          // Persist ALL uploaded weeks (not seeds) to localStorage
+          const uploadedWeeks = mergedWeeks.filter(w =>
+            !SEED_WEEK_COMP.weeks.find(s => s.week === w.week && s.sales2026 === w.sales2026)
+          );
+          try { localStorage.setItem("pulse_weeks", JSON.stringify(mergedWeeks)); } catch {}
           // Detect as new week for AI banner
           if (idx < 0) {
             localStorage.setItem("pulse_new_weeks", JSON.stringify([weekNum]));
@@ -1835,6 +1867,7 @@ export default function App() {
       // AR
       if (m.ar && m.ar.length > 0) {
         setFileData(prev => ({ ...prev, ar: m.ar }));
+        try { localStorage.setItem("pulse_ar_data", JSON.stringify(m.ar)); } catch {}
         summary.push(`AR: ${m.ar.length} accounts`);
       }
 
@@ -1855,6 +1888,7 @@ export default function App() {
             if (idx >= 0) mergedAP[idx] = merged;
             else mergedAP.push(merged);
           });
+          try { localStorage.setItem("pulse_action_plan", JSON.stringify(mergedAP)); } catch {}
           return { ...prev, weekComp: { ...existing, actionPlan: mergedAP } };
         });
         summary.push(`CustomerComp: ${m.customerComp.actionPlan.length} accounts`);
@@ -1877,6 +1911,11 @@ export default function App() {
       if (m.yokohama) { adUpdates.yokohamaData   = m.yokohama; summary.push(`Yokohama: ${m.yokohama.length} dealers`); }
       if (Object.keys(adUpdates).length > 0) {
         setFileData(prev => ({ ...prev, ...adUpdates }));
+        // Persist AD program data
+        try {
+          const existing = JSON.parse(localStorage.getItem("pulse_ad_data") || "{}");
+          localStorage.setItem("pulse_ad_data", JSON.stringify({ ...existing, ...adUpdates }));
+        } catch {}
       }
 
       // Record upload timestamp for all slots
@@ -2136,6 +2175,7 @@ export default function App() {
       });
       if (arParsed.length > 0) {
         setFileData(prev => ({ ...prev, ar: arParsed }));
+        try { localStorage.setItem("pulse_ar_data", JSON.stringify(arParsed)); } catch {}
         setNotice(`✓ AR loaded — ${arParsed.length} accounts, $${arParsed.reduce((s,a)=>s+a.balance,0).toLocaleString("en-US",{maximumFractionDigits:0})} total`);
       } else {
         setNotice("⚠ AR file could not be parsed — check format");
