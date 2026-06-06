@@ -1796,36 +1796,21 @@ export default function App() {
         weekNum = prompted ? parseInt(prompted) : null;
       }
 
-      // ── Build week entry from WTD branch comparison data ─────────────────
+      // ── Build week entry from WTD — Tifton only ──────────────────────────────
       if (weekNum && m.wtd?.branchData) {
-        const bd = m.wtd.branchData;
-        const branches = {};
-        for (const [branch, d] of Object.entries(bd)) {
-          branches[branch] = {
-            sales2025: d.sales2025 || 0,
-            sales2026: d.sales2026 || 0,
-            gp2025:    d.gp2025   || 0,
-            gp2026:    d.gp2026   || 0,
-          };
-        }
-        // Use Tifton (or first branch) for overall totals
-        const tif = bd["Tifton"] || Object.values(bd)[0] || {};
-        const allBranches = Object.values(bd);
-        const totalS25 = allBranches.reduce((s,b)=>s+(b.sales2025||0),0);
-        const totalS26 = allBranches.reduce((s,b)=>s+(b.sales2026||0),0);
-        const totalG25 = allBranches.reduce((s,b)=>s+(b.gp2025||0),0);
-        const totalG26 = allBranches.reduce((s,b)=>s+(b.gp2026||0),0);
+        const bd  = m.wtd.branchData;
+        const tif = bd["Tifton"] || {};
 
         const newWeekEntry = {
           week:      weekNum,
-          sales2025: totalS25,
-          sales2026: totalS26,
-          change:    totalS26 - totalS25,
-          changePct: totalS25 > 0 ? (totalS26-totalS25)/totalS25 : 0,
-          gp2025:    totalG25,
-          gp2026:    totalG26,
-          gpChange:  totalG26 - totalG25,
-          locations: branches,
+          sales2025: tif.sales2025 || 0,
+          sales2026: tif.sales2026 || 0,
+          change:    (tif.sales2026||0) - (tif.sales2025||0),
+          changePct: tif.sales2025 > 0 ? ((tif.sales2026||0)-(tif.sales2025||0))/tif.sales2025 : 0,
+          gp2025:    tif.gp2025 || 0,
+          gp2026:    tif.gp2026 || 0,
+          gpChange:  (tif.gp2026||0) - (tif.gp2025||0),
+          locations: bd,
           tiftonDepts: m.wtd.tiftonDepts || [],
           byronDepts:  m.wtd.byronDepts  || [],
         };
@@ -3046,7 +3031,15 @@ function WeekByWeekView({ weeks }) {
 
 // ── Dept View ─────────────────────────────────────────────────────────────────
 function DeptView({ depts }) {
-  const sorted = [...depts].sort((a,b) => b.sales - a.sales);
+  // Filter out zero-dollar rows and analysis text rows (bullet points, summary headers)
+  const clean = (depts||[]).filter(d =>
+    d.sales > 0
+    && !String(d.dept||"").startsWith("•")
+    && !String(d.dept||"").toLowerCase().includes("departments")
+    && !String(d.dept||"").toLowerCase().includes("doing well")
+    && !String(d.dept||"").toLowerCase().includes("to focus")
+  );
+  const sorted = [...clean].sort((a,b) => b.sales - a.sales);
   const maxSales = sorted[0]?.sales || 1;
 
   return (
