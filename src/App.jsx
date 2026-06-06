@@ -501,27 +501,93 @@ function parseMasterStatesboro(wb) {
   return { actionPlan: ap };
 }
 
-// ── WTD sheet — parse branch comparison section (rows 10+) ──────────────────
+// ── WTD sheet ─────────────────────────────────────────────────────────────────
+// Parses all three sections: Tifton depts, Branch comparison, Byron depts
+// Analysis (Metric/Commentary) is generated from raw numbers — not required in the sheet
 function parseMasterWTD(wb) {
   if (!wb.Sheets["WTD"]) return null;
   const rows = getSheetRows(wb, "WTD", 0);
-  const BRANCHES = {"1 - BYRON":"Byron","2 - TIFTON":"Tifton","3 - STATESBORO":"Statesboro","5 - ATHENS":"Athens"};
-  const branchData = {};
 
-  // Scan all rows for branch comparison data
-  for (const row of rows) {
-    const cell0 = String(row[0] || "").trim();
-    const branch = BRANCHES[cell0];
-    if (branch) {
-      branchData[branch] = {
-        sales2025: Number(row[1] || 0),
-        sales2026: Number(row[2] || 0),
-        gp2025:    Number(row[6] || row[5] || 0),
-        gp2026:    Number(row[7] || row[6] || 0),
-      };
-    }
+  const BRANCHES = {"1 - BYRON":"Byron","2 - TIFTON":"Tifton","3 - STATESBORO":"Statesboro","5 - ATHENS":"Athens","TOTAL":"Total"};
+  const branchData = {};
+  const tiftonDepts = [];
+  const byronDepts  = [];
+  let   section     = null;   // "tifton" | "branch" | "byron"
+
+  function pct(v) { return typeof v==="string" ? parseFloat(v.replace(/[%$,]/g,""))||0 : Number(v||0); }
+  function num(v) { return typeof v==="string" ? parseFloat(v.replace(/[$,]/g,""))||0 : Number(v||0); }
+
+  function autoMetric(s1, s2, gp1, gp2) {
+    const salesChg = s2 - s1;
+    const gpChg    = gp2 - gp1;
+    const gpPct2   = s2 > 0 ? gp2/s2 : 0;
+    const gpPct1   = s1 > 0 ? gp1/s1 : 0;
+    if (salesChg > 0 && gpChg > 0)   return "★ Growth + GP up";
+    if (salesChg > 0 && gpChg < 0)   return gpPct2 < gpPct1 - 0.03 ? "★ Growth + margin compression" : "✓ Growth";
+    if (salesChg < 0 && Math.abs(salesChg) > 5000) return "⚠ Largest $ loss";
+    if (salesChg < 0)                 return "⚠ Decline";
+    return "→ Flat";
   }
-  return Object.keys(branchData).length > 0 ? branchData : null;
+
+  function autoComment(dept, s1, s2, gp1, gp2) {
+    const sDelta = s2 - s1;
+    const sPct   = s1 > 0 ? ((s2-s1)/s1*100).toFixed(1) : "N/A";
+    const gpChg  = gp2 - gp1;
+    const gpPct  = gpChg !== 0 ? (Math.abs(gpChg/Math.max(gp1,1))*100).toFixed(1) : 0;
+    const gpPct1 = s1>0?(gp1/s1*100).toFixed(1):"0";
+    const gpPct2 = s2>0?(gp2/s2*100).toFixed(1):"0";
+    const dir    = sDelta >= 0 ? `up ${sPct}%` : `down ${Math.abs(sPct)}%`;
+    return `${dept}: Revenue ${dir} ($${Math.abs(sDelta).toLocaleString("en-US",{maximumFractionDigits:0})}). GP$ ${gpChg>=0?"up":"down"} ${gpPct}%. Margin ${gpPct1}%→${gpPct2}%.`;
+  }
+
+  for (const row of rows) {
+    const cell0 = String(row[0] || "").trim().toUpperCase();
+
+    // Detect section headers
+    if (cell0 === "TIFTON" || cell0.includes("TIFTON")) { section = "tifton"; continue; }
+    if (cell0 === "BYRON"  || cell0.includes("BYRON"))  { section = "byron";  continue; }
+    if (cell0 === "LOCATION" || cell0 === "BRANCH")     { section = "branch"; continue; }
+    // Detect branch comparison data rows
+    const branchKey = Object.keys(BRANCHES).find(k => cell0.includes(k.toUpperCase()) || cell0 === k.toUpperCase());
+    if (branchKey && section !== "tifton" && section !== "byron") { section = "branch"; }
+
+    // Parse branch comparison rows
+    const branchName = BRANCHES[Object.keys(BRANCHES).find(k => String(row[0]||"").trim().toUpperCase() === k.toUpperCase() || String(row[0]||"").trim().includes(k))];
+    if (branchName && branchName !== "Total") {
+      const s1 = num(row[1]), s2 = num(row[2]);
+      const g1 = num(row[6]||row[5]), g2 = num(row[7]||row[6]);
+      branchData[branchName] = { sales2025:s1, sales2026:s2, gp2025:g1, gp2026:g2,
+        salesChange: s2-s1, salesChangePct: s1>0?(s2-s1)/s1:0,
+        gpChange: g2-g1, metric: autoMetric(s1,s2,g1,g2) };
+      continue;
+    }
+
+    // Parse dept rows (Tifton or Byron section)
+    const dept = String(row[0]||"").trim();
+    if (!dept || dept.length < 3) continue;
+    if (dept.toUpperCase().includes("SUBTOTAL") || dept.toUpperCase().includes("TOTAL")) continue;
+    if (dept.toUpperCase() === "DEPARTMENT") continue;  // header row
+
+    const s1=num(row[1]), s2=num(row[2]), g1=num(row[6]||row[5]), g2=num(row[7]||row[6]);
+    if (s1===0 && s2===0) continue;
+
+    const entry = { dept, sales2025:s1, sales2026:s2, gp2025:g1, gp2026:g2,
+      salesChange:s2-s1, salesChangePct:s1>0?(s2-s1)/s1:0,
+      gpChange:g2-g1, gpChangePct:g1>0?(g2-g1)/g1:0,
+      gpPct2025:s1>0?g1/s1:0, gpPct2026:s2>0?g2/s2:0,
+      // Use col N if provided, else generate
+      metric:   String(row[13]||"").trim() || autoMetric(s1,s2,g1,g2),
+      comment:  String(row[14]||"").trim() || autoComment(dept,s1,s2,g1,g2),
+    };
+    if (section === "tifton") tiftonDepts.push(entry);
+    else if (section === "byron") byronDepts.push(entry);
+  }
+
+  return {
+    branchData:  Object.keys(branchData).length > 0 ? branchData : null,
+    tiftonDepts: tiftonDepts.length > 0 ? tiftonDepts : null,
+    byronDepts:  byronDepts.length  > 0 ? byronDepts  : null,
+  };
 }
 
 // ── AD Programs ──────────────────────────────────────────────────────────────
@@ -1673,13 +1739,75 @@ export default function App() {
     });
   }
 
-  async function handleUpload(slotId, wb) {
+  async function handleUpload(slotId, wb, filename="") {
     let parsed;
 
     // ── MASTER WORKBOOK DETECTION ─────────────────────────────────────────
     if (isMasterWorkbook(wb)) {
       const m = parseMasterWorkbook(wb);
       const summary = [];
+
+      // ── Detect week number from filename (e.g. Pulse_Master_Upload_W23.xlsx) ──
+      const wkMatch = filename.match(/W(\d{1,2})/i);
+      const detectedWeek = wkMatch ? parseInt(wkMatch[1]) : null;
+      let weekNum = detectedWeek;
+      if (!weekNum) {
+        const prompted = window.prompt(
+          "Which week is this upload for? Enter week number (e.g. 23):"
+        );
+        weekNum = prompted ? parseInt(prompted) : null;
+      }
+
+      // ── Build week entry from WTD branch comparison data ─────────────────
+      if (weekNum && m.wtd?.branchData) {
+        const bd = m.wtd.branchData;
+        const branches = {};
+        for (const [branch, d] of Object.entries(bd)) {
+          branches[branch] = {
+            sales2025: d.sales2025 || 0,
+            sales2026: d.sales2026 || 0,
+            gp2025:    d.gp2025   || 0,
+            gp2026:    d.gp2026   || 0,
+          };
+        }
+        // Use Tifton (or first branch) for overall totals
+        const tif = bd["Tifton"] || Object.values(bd)[0] || {};
+        const allBranches = Object.values(bd);
+        const totalS25 = allBranches.reduce((s,b)=>s+(b.sales2025||0),0);
+        const totalS26 = allBranches.reduce((s,b)=>s+(b.sales2026||0),0);
+        const totalG25 = allBranches.reduce((s,b)=>s+(b.gp2025||0),0);
+        const totalG26 = allBranches.reduce((s,b)=>s+(b.gp2026||0),0);
+
+        const newWeekEntry = {
+          week:      weekNum,
+          sales2025: totalS25,
+          sales2026: totalS26,
+          change:    totalS26 - totalS25,
+          changePct: totalS25 > 0 ? (totalS26-totalS25)/totalS25 : 0,
+          gp2025:    totalG25,
+          gp2026:    totalG26,
+          gpChange:  totalG26 - totalG25,
+          locations: branches,
+          tiftonDepts: m.wtd.tiftonDepts || [],
+          byronDepts:  m.wtd.byronDepts  || [],
+        };
+
+        setFileData(prev => {
+          const existing = prev.weekComp || SEED_WEEK_COMP;
+          let mergedWeeks = [...(existing.weeks || [])];
+          const idx = mergedWeeks.findIndex(w => w.week === weekNum);
+          if (idx >= 0) mergedWeeks[idx] = newWeekEntry;
+          else mergedWeeks.push(newWeekEntry);
+          mergedWeeks.sort((a,b) => a.week - b.week);
+          // Detect as new week for AI banner
+          if (idx < 0) {
+            localStorage.setItem("pulse_new_weeks", JSON.stringify([weekNum]));
+            setNewWeeksDetected([weekNum]);
+          }
+          return { ...prev, weekComp: { ...existing, weeks: mergedWeeks } };
+        });
+        summary.push(`W${weekNum} added to Overview`);
+      }
 
       // AR
       if (m.ar && m.ar.length > 0) {
@@ -2088,7 +2216,7 @@ function FileSetup({ fileData, onUpload, onClear }) {
                   const reader = new FileReader();
                   reader.onload = ev => {
                     const wb = XLSX.read(ev.target.result, { type: "array" });
-                    onUpload(slot.id, wb);
+                    onUpload(slot.id, wb, file.name);
                   };
                   reader.readAsArrayBuffer(file);
                   e.target.value = "";
