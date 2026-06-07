@@ -374,7 +374,8 @@ async function syncAIPlanDown(userId) {
 // ── Master Upload Workbook Parser ─────────────────────────────────────────────
 function isMasterWorkbook(wb) {
   const sheets = wb.SheetNames;
-  return sheets.includes("AR") && sheets.includes("CustomerComp") && sheets.includes("WTD");
+  return sheets.includes("AR") && sheets.includes("CustomerComp") &&
+    (sheets.includes("WTD") || sheets.includes("QTD") || sheets.includes("Summary"));
 }
 
 function getSheetRows(wb, name, startRow = 1) {
@@ -526,6 +527,97 @@ function parseMasterStatesboro(wb) {
     });
   }
   return { actionPlan: ap };
+}
+
+// ── QTD sheet — same structure as WTD, drives branch Q2 totals ──────────────
+function parseMasterQTD(wb) {
+  if (!wb.Sheets["QTD"]) return null;
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets["QTD"], { header:1, defval:null });
+
+  const BRANCH_KEYS = {
+    "1 - BYRON":"Byron","2 - TIFTON":"Tifton",
+    "3 - STATESBORO":"Statesboro","5 - ATHENS":"Athens","TOTAL":"Total"
+  };
+  const branchData={}, tiftonDepts=[], byronDepts=[];
+  let section=null;
+
+  function num(v){ return typeof v==="number"?v:parseFloat(String(v||"0").replace(/[$,%]/g,""))||0; }
+
+  for (const row of rows) {
+    const raw0  = String(row[0]||"").trim();
+    const cell0 = raw0.toUpperCase();
+
+    // ── Branch rows first (exact match) ─────────────────────────────────────
+    const bKey = Object.keys(BRANCH_KEYS).find(k=>cell0===k.toUpperCase());
+    if (bKey) {
+      const bName=BRANCH_KEYS[bKey];
+      if (bName!=="Total") {
+        branchData[bName]={
+          sales2025:num(row[1]), sales2026:num(row[2]),
+          gp2025:num(row[5]),    gp2026:num(row[6]),
+        };
+      }
+      continue;
+    }
+
+    // ── Section headers ──────────────────────────────────────────────────────
+    if (raw0.startsWith("①")||(cell0.includes("TIFTON")&&cell0.includes("DEPARTMENT"))){ section="tifton"; continue; }
+    if (raw0.startsWith("②")||cell0.includes("BRANCH COMPARISON"))                     { section="branch"; continue; }
+    if (raw0.startsWith("③")||(cell0.includes("BYRON")&&cell0.includes("DEPARTMENT"))) { section="byron";  continue; }
+
+    // ── Skip headers/totals/empty ────────────────────────────────────────────
+    if (!raw0||raw0.length<3) continue;
+    if (cell0==="DEPARTMENT"||cell0==="BRANCH") continue;
+    if (cell0.includes("SUBTOTAL")) continue;
+
+    // ── Department rows ──────────────────────────────────────────────────────
+    const s1=num(row[1]),s2=num(row[2]),g1=num(row[5]),g2=num(row[6]);
+    if (s1===0&&s2===0) continue;
+    const entry={dept:raw0, sales2025:s1, sales2026:s2, gp2025:g1, gp2026:g2,
+      salesChange:s2-s1, gpPct2026:s2>0?g2/s2:0};
+    if (section==="tifton") tiftonDepts.push(entry);
+    else if (section==="byron") byronDepts.push(entry);
+  }
+
+  return Object.keys(branchData).length>0
+    ? { branchData, tiftonDepts, byronDepts }
+    : null;
+}
+
+// ── Summary sheet — explicit QTD/YTD/weekly values entered by user ──────────
+function parseMasterSummary(wb) {
+  if (!wb.Sheets["Summary"]) return null;
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets["Summary"], { header:1, defval:null });
+  const result = { weekNum:null, weekDate:"", tifton:{}, branches:{}, weekly:{} };
+  const num = v => typeof v==="number" ? v : parseFloat(String(v||"0").replace(/[$,%,]/g,""))||0;
+
+  for (let i=0; i<rows.length; i++) {
+    const row  = rows[i];
+    const col0 = String(row[0]||"").trim();
+    const col0U = col0.toUpperCase();
+
+    if (col0U === "WEEK NUMBER")      { result.weekNum  = num(row[1]); continue; }
+    if (col0U === "WEEK ENDING DATE") { result.weekDate = String(row[1]||""); continue; }
+
+    // Tifton rows (col A = metric, col B = 2025, col C = 2026)
+    if (col0U.includes("Q1 SALES"))           { result.tifton.q1_2025=num(row[1]); result.tifton.q1_2026=num(row[2]); }
+    if (col0U.includes("Q2 SALES"))           { result.tifton.q2_2025=num(row[1]); result.tifton.q2_2026=num(row[2]); }
+    if (col0U.includes("Q1 GP"))              { result.tifton.q1_gp25=num(row[1]); result.tifton.q1_gp26=num(row[2]); }
+    if (col0U.includes("Q2 GP"))              { result.tifton.q2_gp25=num(row[1]); result.tifton.q2_gp26=num(row[2]); }
+    if (col0U === "TIFTON WEEKLY SALES")      { result.weekly.s25=num(row[1]);  result.weekly.s26=num(row[2]); }
+    if (col0U === "TIFTON WEEKLY GP$")        { result.weekly.g25=num(row[1]);  result.weekly.g26=num(row[2]); }
+
+    // Branch rows (col A = branch name, col B-E = Q2 values)
+    for (const br of ["Byron","Statesboro","Athens"]) {
+      if (col0U === br.toUpperCase()) {
+        result.branches[br] = {
+          q2_2025:num(row[1]), q2_2026:num(row[2]),
+          q2_gp25:num(row[3]), q2_gp26:num(row[4]),
+        };
+      }
+    }
+  }
+  return (result.weekNum || Object.keys(result.tifton).length > 0) ? result : null;
 }
 
 // ── WTD sheet ─────────────────────────────────────────────────────────────────
@@ -775,6 +867,8 @@ function parseMasterYokohama(wb) {
 // ── Master entry point ────────────────────────────────────────────────────────
 function parseMasterWorkbook(wb) {
   return {
+    summary:    parseMasterSummary(wb),
+    qtd:        parseMasterQTD(wb),
     ar:         parseMasterAR(wb),
     customerComp: parseMasterCustomerComp(wb),
     statesboro: parseMasterStatesboro(wb),
@@ -1593,19 +1687,27 @@ export default function App() {
       if (savedAR) ar = JSON.parse(savedAR);
       const savedAD = localStorage.getItem("pulse_ad_data");
       if (savedAD) adData = JSON.parse(savedAD);
-      const savedBD = localStorage.getItem("pulse_branch_data");
-      if (savedBD) {
-        const bd = JSON.parse(savedBD);
-        // Ensure weeklySales always has the uploaded weeks merged with SEED
+      // Rebuild branchData from SEED + all stored weekly WTD contributions
+      const storedWTD = JSON.parse(localStorage.getItem("pulse_wtd_weekly") || "{}");
+      if (Object.keys(storedWTD).length > 0) {
+        const bd = JSON.parse(JSON.stringify(SEED_BRANCH_DATA));
+        Object.values(storedWTD).forEach(wkContrib => {
+          Object.entries(wkContrib).forEach(([bName, v]) => {
+            if (bd.branches?.[bName]) {
+              bd.branches[bName].q2_2026 = (bd.branches[bName].q2_2026 || 0) + (v.s26 || 0);
+              bd.branches[bName].q2_gp26 = (bd.branches[bName].q2_gp26 || 0) + (v.g26 || 0);
+              bd.branches[bName].q2_2025 = (bd.branches[bName].q2_2025 || 0) + (v.s25 || 0);
+              bd.branches[bName].q2_gp25 = (bd.branches[bName].q2_gp25 || 0) + (v.g25 || 0);
+            }
+          });
+        });
+        // Rebuild weeklySales from SEED + stored weekly chart entries
         const storedWkEntries = JSON.parse(localStorage.getItem("pulse_ws_entries") || "{}");
-        if (Object.keys(storedWkEntries).length > 0) {
-          const seedWS = SEED_BRANCH_DATA.weeklySales || [];
-          const uploadedWkNums = Object.keys(storedWkEntries).map(Number);
-          bd.weeklySales = [
-            ...seedWS.filter(w => !uploadedWkNums.includes(w.week)),
-            ...Object.values(storedWkEntries),
-          ].sort((a,b) => a.week - b.week);
-        }
+        const uploadedWkNums  = Object.keys(storedWkEntries).map(Number);
+        bd.weeklySales = [
+          ...(SEED_BRANCH_DATA.weeklySales||[]).filter(w => !uploadedWkNums.includes(w.week)),
+          ...Object.values(storedWkEntries),
+        ].sort((a,b) => a.week - b.week);
         adData.branchData = bd;
       }
     } catch {}
@@ -1829,15 +1931,79 @@ export default function App() {
       const m = parseMasterWorkbook(wb);
       const summary = [];
 
-      // ── Detect week number from filename (e.g. Pulse_Master_Upload_W23.xlsx) ──
-      const wkMatch = filename.match(/W(\d{1,2})/i);
-      const detectedWeek = wkMatch ? parseInt(wkMatch[1]) : null;
-      let weekNum = detectedWeek;
+      // ── Week number and branch totals: Summary sheet takes priority ──────────
+      const sumSheet = m.summary;
+      let weekNum = sumSheet?.weekNum || null;
       if (!weekNum) {
-        const prompted = window.prompt(
-          "Which week is this upload for? Enter week number (e.g. 23):"
-        );
+        const wkMatch = filename.match(/W(\d{1,2})/i);
+        weekNum = wkMatch ? parseInt(wkMatch[1]) : null;
+      }
+      if (!weekNum) {
+        const prompted = window.prompt("Which week is this upload for? Enter week number (e.g. 23):");
         weekNum = prompted ? parseInt(prompted) : null;
+      }
+
+      // ── QTD sheet → drives all branch Q2/YTD numbers (definitive source) ────
+      // QTD takes priority; Summary sheet is fallback if QTD is empty
+      const qtdData = m.qtd?.branchData ? m.qtd : null;
+      const hasBranchSource = qtdData || (sumSheet && Object.keys(sumSheet.tifton||{}).length>0);
+
+      if (hasBranchSource) {
+        const newBD = JSON.parse(JSON.stringify(SEED_BRANCH_DATA));
+
+        if (qtdData) {
+          // ── QTD sheet: read branch Row 2 (Range 2 = current QTD) for each branch
+          Object.entries(qtdData.branchData).forEach(([bName, d]) => {
+            if (newBD.branches[bName]) {
+              newBD.branches[bName].q2_2026 = d.sales2026 || 0;
+              newBD.branches[bName].q2_2025 = d.sales2025 || 0;
+              newBD.branches[bName].q2_gp26 = d.gp2026    || 0;
+              newBD.branches[bName].q2_gp25 = d.gp2025    || 0;
+            }
+          });
+          const tifQTD = qtdData.branchData.Tifton || {};
+          summary.push(`QTD (from sheet): Tifton $${((tifQTD.sales2026||0)/1000000).toFixed(2)}M · YTD $${(((newBD.branches.Tifton.q1_2026||0)+(tifQTD.sales2026||0))/1000000).toFixed(2)}M`);
+        } else {
+          // ── Summary sheet fallback ────────────────────────────────────────
+          const tif = sumSheet.tifton;
+          if (tif.q1_2026) newBD.branches.Tifton.q1_2026 = tif.q1_2026;
+          if (tif.q1_2025) newBD.branches.Tifton.q1_2025 = tif.q1_2025;
+          if (tif.q2_2026) newBD.branches.Tifton.q2_2026 = tif.q2_2026;
+          if (tif.q2_2025) newBD.branches.Tifton.q2_2025 = tif.q2_2025;
+          if (tif.q1_gp26) newBD.branches.Tifton.q1_gp26 = tif.q1_gp26;
+          if (tif.q1_gp25) newBD.branches.Tifton.q1_gp25 = tif.q1_gp25;
+          if (tif.q2_gp26) newBD.branches.Tifton.q2_gp26 = tif.q2_gp26;
+          if (tif.q2_gp25) newBD.branches.Tifton.q2_gp25 = tif.q2_gp25;
+          Object.entries(sumSheet.branches||{}).forEach(([br,v])=>{
+            if (newBD.branches[br]){
+              if(v.q2_2026) newBD.branches[br].q2_2026=v.q2_2026;
+              if(v.q2_2025) newBD.branches[br].q2_2025=v.q2_2025;
+              if(v.q2_gp26) newBD.branches[br].q2_gp26=v.q2_gp26;
+              if(v.q2_gp25) newBD.branches[br].q2_gp25=v.q2_gp25;
+            }
+          });
+          summary.push(`QTD (summary): Tifton $${((tif.q2_2026||0)/1000000).toFixed(2)}M`);
+        }
+
+        // ── Weekly chart entry (WTD weekly data for the per-week chart) ──────
+        const wtdBD = m.wtd?.branchData;
+        if (weekNum && wtdBD) {
+          const wsList = [...(SEED_BRANCH_DATA.weeklySales||[])];
+          const wsIdx  = wsList.findIndex(w=>w.week===weekNum);
+          const wsE    = { week:weekNum };
+          Object.entries(wtdBD).forEach(([bName,d])=>{
+            wsE[bName]        = Math.round(d.sales2026||0);
+            wsE[`${bName}25`] = Math.round(d.sales2025||0);
+          });
+          if (wsIdx>=0) wsList[wsIdx]=wsE; else wsList.push(wsE);
+          wsList.sort((a,b)=>a.week-b.week);
+          newBD.weeklySales = wsList;
+          localStorage.setItem("pulse_ws_entries",
+            JSON.stringify(Object.fromEntries(wsList.filter(w=>w.week>22).map(w=>[w.week,w]))));
+        }
+
+        localStorage.setItem("pulse_branch_data", JSON.stringify(newBD));
+        setFileData(prev => ({ ...prev, branchData: newBD }));
       }
 
       // ── Build week entry from WTD — Tifton only ──────────────────────────────
