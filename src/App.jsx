@@ -1594,7 +1594,20 @@ export default function App() {
       const savedAD = localStorage.getItem("pulse_ad_data");
       if (savedAD) adData = JSON.parse(savedAD);
       const savedBD = localStorage.getItem("pulse_branch_data");
-      if (savedBD) adData.branchData = JSON.parse(savedBD);
+      if (savedBD) {
+        const bd = JSON.parse(savedBD);
+        // Ensure weeklySales always has the uploaded weeks merged with SEED
+        const storedWkEntries = JSON.parse(localStorage.getItem("pulse_ws_entries") || "{}");
+        if (Object.keys(storedWkEntries).length > 0) {
+          const seedWS = SEED_BRANCH_DATA.weeklySales || [];
+          const uploadedWkNums = Object.keys(storedWkEntries).map(Number);
+          bd.weeklySales = [
+            ...seedWS.filter(w => !uploadedWkNums.includes(w.week)),
+            ...Object.values(storedWkEntries),
+          ].sort((a,b) => a.week - b.week);
+        }
+        adData.branchData = bd;
+      }
     } catch {}
     return { weekComp, customers: SEED_CUSTOMERS, ar, ...adData };
   });
@@ -1942,9 +1955,10 @@ export default function App() {
           });
           wtdWeekly[weekNum] = newContrib;
 
-          // ── Also add/update this week in weeklySales for the chart ─────────
-          const wsList = newBD.weeklySales ? [...newBD.weeklySales] : [];
-          const wsIdx  = wsList.findIndex(w => w.week === weekNum);
+          // ── Rebuild weeklySales: always start from SEED + all stored weekly entries ──
+          // This ensures weeklySales is never lost if localStorage has partial data
+          const storedWkEntries = JSON.parse(localStorage.getItem("pulse_ws_entries") || "{}");
+          // Add/replace this week's entry
           const wsEntry = { week: weekNum };
           Object.entries(m.wtd.branchData).forEach(([bName, d]) => {
             wsEntry[bName]          = Math.round(d.sales2026 || 0);
@@ -1952,9 +1966,15 @@ export default function App() {
             wsEntry[`${bName}_gp`]  = Math.round(d.gp2026    || 0);
             wsEntry[`${bName}_gp25`]= Math.round(d.gp2025    || 0);
           });
-          if (wsIdx >= 0) wsList[wsIdx] = wsEntry;
-          else wsList.push(wsEntry);
-          wsList.sort((a,b) => a.week - b.week);
+          storedWkEntries[weekNum] = wsEntry;
+          localStorage.setItem("pulse_ws_entries", JSON.stringify(storedWkEntries));
+          // Rebuild weeklySales = SEED W1-W22 + all stored uploaded weeks
+          const seedWS  = SEED_BRANCH_DATA.weeklySales || [];
+          const uploadedWkNums = Object.keys(storedWkEntries).map(Number);
+          const wsList  = [
+            ...seedWS.filter(w => !uploadedWkNums.includes(w.week)),
+            ...Object.values(storedWkEntries),
+          ].sort((a,b) => a.week - b.week);
           newBD.weeklySales = wsList;
 
           localStorage.setItem(WTD_WK_KEY, JSON.stringify(wtdWeekly));
