@@ -1943,12 +1943,10 @@ export default function App() {
         weekNum = prompted ? parseInt(prompted) : null;
       }
 
-      // ── QTD sheet → drives all branch Q2/YTD numbers (definitive source) ────
-      // QTD takes priority; Summary sheet is fallback if QTD is empty
+      // ── Branch Q2/QTD update — always runs, QTD sheet gives definitive numbers ─
       const qtdData = m.qtd?.branchData ? m.qtd : null;
-      const hasBranchSource = qtdData || (sumSheet && Object.keys(sumSheet.tifton||{}).length>0);
-
-      if (hasBranchSource) {
+      // Always update branchData — QTD sheet → Summary fallback → WTD weekly calc
+      {
         const newBD = JSON.parse(JSON.stringify(SEED_BRANCH_DATA));
 
         if (qtdData) {
