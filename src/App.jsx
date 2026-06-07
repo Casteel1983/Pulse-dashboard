@@ -1593,6 +1593,8 @@ export default function App() {
       if (savedAR) ar = JSON.parse(savedAR);
       const savedAD = localStorage.getItem("pulse_ad_data");
       if (savedAD) adData = JSON.parse(savedAD);
+      const savedBD = localStorage.getItem("pulse_branch_data");
+      if (savedBD) adData.branchData = JSON.parse(savedBD);
     } catch {}
     return { weekComp, customers: SEED_CUSTOMERS, ar, ...adData };
   });
@@ -1894,6 +1896,57 @@ export default function App() {
           return { ...prev, weekComp: { ...existing, actionPlan: mergedAP } };
         });
         summary.push(`CustomerComp: ${m.customerComp.actionPlan.length} accounts`);
+      }
+
+      // ── Update branchData QTD/YTD from WTD branch comparison ────────────────
+      if (m.wtd?.branchData && weekNum) {
+        try {
+          // Start from current branchData (already in fileData) or SEED
+          const curBD = (() => {
+            try {
+              const s = localStorage.getItem("pulse_branch_data");
+              return s ? JSON.parse(s) : SEED_BRANCH_DATA;
+            } catch { return SEED_BRANCH_DATA; }
+          })();
+          const newBD = JSON.parse(JSON.stringify(curBD)); // deep copy
+
+          // Per-week tracking to avoid double-count on re-upload
+          const WTD_WK_KEY = "pulse_wtd_weekly";
+          const wtdWeekly  = (() => {
+            try { return JSON.parse(localStorage.getItem(WTD_WK_KEY) || "{}"); } catch { return {}; }
+          })();
+
+          // Remove previous contribution for this week (if re-upload)
+          const prev = wtdWeekly[weekNum] || {};
+          Object.entries(prev).forEach(([br, v]) => {
+            if (newBD.branches?.[br]) {
+              newBD.branches[br].q2_2026 -= (v.s26 || 0);
+              newBD.branches[br].q2_gp26 -= (v.g26 || 0);
+              newBD.branches[br].q2_2025 -= (v.s25 || 0);
+              newBD.branches[br].q2_gp25 -= (v.g25 || 0);
+            }
+          });
+
+          // Add this week's WTD contribution for each branch
+          const newContrib = {};
+          Object.entries(m.wtd.branchData).forEach(([bName, d]) => {
+            if (newBD.branches?.[bName]) {
+              const s26 = d.sales2026 || 0, g26 = d.gp2026 || 0;
+              const s25 = d.sales2025 || 0, g25 = d.gp2025 || 0;
+              newBD.branches[bName].q2_2026 = (newBD.branches[bName].q2_2026 || 0) + s26;
+              newBD.branches[bName].q2_gp26 = (newBD.branches[bName].q2_gp26 || 0) + g26;
+              newBD.branches[bName].q2_2025 = (newBD.branches[bName].q2_2025 || 0) + s25;
+              newBD.branches[bName].q2_gp25 = (newBD.branches[bName].q2_gp25 || 0) + g25;
+              newContrib[bName] = { s26, g26, s25, g25 };
+            }
+          });
+          wtdWeekly[weekNum] = newContrib;
+
+          localStorage.setItem(WTD_WK_KEY, JSON.stringify(wtdWeekly));
+          localStorage.setItem("pulse_branch_data", JSON.stringify(newBD));
+          setFileData(prev => ({ ...prev, branchData: newBD }));
+          summary.push(`QTD updated — Tifton Q2: $${((newBD.branches?.Tifton?.q2_2026||0)/1000000).toFixed(2)}M`);
+        } catch(e) { console.warn("Branch update error:", e.message); }
       }
 
       // Statesboro
@@ -2360,7 +2413,7 @@ export default function App() {
             onDismiss={() => setNewWeeksDetected([])}
           />
         )}
-        {tab === "overview" && <OverviewTab weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} />}
+        {tab === "overview" && <OverviewTab weekComp={weekComp} branchData={fileData.branchData || SEED_BRANCH_DATA} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} />}
         {["tiffany","larry","austin","house"].includes(tab) && (
           <RepTab repName={tab.charAt(0).toUpperCase()+tab.slice(1)} weekComp={weekComp} onAskAI={goAI} onCustomerClick={openCustomer} customers={fileData.customers || SEED_CUSTOMERS} inactiveCustomers={inactiveCustomers} leads={leads} onAddLead={addLead} onDeleteLead={deleteLead} currentUser={currentUser} onLogActivity={logActivity} onRefreshLeads={refreshLeads} />
         )}
@@ -2954,16 +3007,9 @@ Be specific — use actual numbers, names, and account names from the transcript
 }
 
 
-function OverviewTab({ weekComp, onAskAI, onCustomerClick, customers }) {
+function OverviewTab({ weekComp, branchData: propBranchData, onAskAI, onCustomerClick, customers }) {
   const [subTab, setSubTab] = useState("weekcomp");
-  // branchData: SEED base + any uploaded WTD additions (persisted in localStorage)
-  const branchData = (() => {
-    try {
-      const saved = localStorage.getItem("pulse_branch_data");
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return SEED_BRANCH_DATA;
-  })();
+  const branchData = propBranchData || SEED_BRANCH_DATA;
 
   const weeks = weekComp?.weeks || [];
   // YTD = sum of Q1 + Q2 from branchData (Tifton only, updated by WTD uploads)
