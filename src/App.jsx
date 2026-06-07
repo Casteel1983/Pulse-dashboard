@@ -1942,6 +1942,21 @@ export default function App() {
           });
           wtdWeekly[weekNum] = newContrib;
 
+          // ── Also add/update this week in weeklySales for the chart ─────────
+          const wsList = newBD.weeklySales ? [...newBD.weeklySales] : [];
+          const wsIdx  = wsList.findIndex(w => w.week === weekNum);
+          const wsEntry = { week: weekNum };
+          Object.entries(m.wtd.branchData).forEach(([bName, d]) => {
+            wsEntry[bName]          = Math.round(d.sales2026 || 0);
+            wsEntry[`${bName}25`]   = Math.round(d.sales2025 || 0);
+            wsEntry[`${bName}_gp`]  = Math.round(d.gp2026    || 0);
+            wsEntry[`${bName}_gp25`]= Math.round(d.gp2025    || 0);
+          });
+          if (wsIdx >= 0) wsList[wsIdx] = wsEntry;
+          else wsList.push(wsEntry);
+          wsList.sort((a,b) => a.week - b.week);
+          newBD.weeklySales = wsList;
+
           localStorage.setItem(WTD_WK_KEY, JSON.stringify(wtdWeekly));
           localStorage.setItem("pulse_branch_data", JSON.stringify(newBD));
           setFileData(prev => ({ ...prev, branchData: newBD }));
