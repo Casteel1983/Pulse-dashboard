@@ -2956,12 +2956,22 @@ Be specific — use actual numbers, names, and account names from the transcript
 
 function OverviewTab({ weekComp, onAskAI, onCustomerClick, customers }) {
   const [subTab, setSubTab] = useState("weekcomp");
-  const branchData = SEED_BRANCH_DATA;
+  // branchData: SEED base + any uploaded WTD additions (persisted in localStorage)
+  const branchData = (() => {
+    try {
+      const saved = localStorage.getItem("pulse_branch_data");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return SEED_BRANCH_DATA;
+  })();
 
   const weeks = weekComp?.weeks || [];
-  const totalYTD25 = weeks.reduce((s,w) => s+w.sales2025, 0);
-  const totalYTD26 = weeks.reduce((s,w) => s+w.sales2026, 0);
-  const totalGP26  = weeks.reduce((s,w) => s+w.gp2026, 0);
+  // YTD = sum of Q1 + Q2 from branchData (Tifton only, updated by WTD uploads)
+  const tifBD = branchData?.branches?.Tifton || {};
+  const totalYTD25 = (tifBD.q1_2025||0) + (tifBD.q2_2025||0);
+  const totalYTD26 = (tifBD.q1_2026||0) + (tifBD.q2_2026||0);
+  const totalGP26  = (tifBD.q1_gp26||0) + (tifBD.q2_gp26||0);
+  const totalGP25  = (tifBD.q1_gp25||0) + (tifBD.q2_gp25||0);
   const latest     = weeks[weeks.length-1];
   // Branch-level YTD (Q1 + Q2)
   const bSumQ1_26 = Object.values(branchData.branches).reduce((s,b)=>s+b.q1_2026,0);
