@@ -5113,33 +5113,7 @@ function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmi
         </div>
       )}
 
-      {/* ── WTD / QTD / YTD period selector ── */}
-      <div style={{ display:"flex", gap:6, marginBottom:"0.75rem", flexWrap:"wrap" }}>
-        {[
-          { key:"wtd", label:"WTD",  color:"#0891B2", bg:"#ECFEFF",
-            hasData: (weekComp?.periods?.wtd?.data||[]).filter(r=>
-              (r.salesman||"House").toLowerCase()===repName.toLowerCase()).length > 0 },
-          { key:"qtd", label:"QTD",  color:"#7C3AED", bg:"#F5F3FF", hasData:true },
-          { key:"ytd", label:"YTD",  color:"#1E5FCC", bg:"#EFF6FF", hasData:true },
-        ].map(tab => (
-          <button key={tab.key} onClick={()=>setPeriod(tab.key)}
-            style={{ fontSize:"0.72rem", fontWeight:700, padding:"0.35rem 1rem",
-              borderRadius:6, cursor:"pointer",
-              border: period===tab.key ? "none" : `1px solid ${tab.color}33`,
-              background: period===tab.key ? tab.color : tab.bg,
-              color:       period===tab.key ? "#fff"    : tab.color,
-              opacity:     tab.hasData ? 1 : 0.5 }}>
-            {tab.label}
-            {!tab.hasData && <span style={{fontSize:"0.6rem",marginLeft:4}}>(no data)</span>}
-          </button>
-        ))}
-        <span style={{ fontSize:"0.65rem", color:MUTED, alignSelf:"center", marginLeft:4 }}>
-          {period==="wtd" ? "Current week" :
-           period==="qtd" ? "Q2 Apr 1–Jun 6" : "Full year Jan 1–Jun 6"}
-        </span>
-      </div>
-
-      {/* KPI strip */}
+            {/* KPI strip */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"0.6rem", marginBottom:"1rem" }}>
         {[
           { label:"Open Leads",     val:openLeads.length,      color:openLeads.length>0?RED:MUTED },
