@@ -3294,8 +3294,32 @@ function OverviewTab({ weekComp, branchData: propBranchData, onAskAI, onCustomer
   const bYTD25 = bSumQ1_25 + bSumQ2_25;
   const bGP26  = Object.values(branchData.branches).reduce((s,b)=>s+b.q1_gp26+b.q2_gp26,0);
 
+  // Period label for display
+  const periodLabel = acctPeriod === "wtd" ? "WTD" : acctPeriod === "qtd" ? "QTD" : "YTD";
+
   return (
     <div>
+
+      {/* ── WTD / QTD / YTD period selector ── */}
+      <div style={{ display:"flex", gap:6, marginBottom:"0.85rem" }}>
+        {[
+          { key:"qtd", label:"QTD", color:"#7C3AED", bg:"#F5F3FF" },
+          { key:"ytd", label:"YTD", color:"#1E5FCC", bg:"#EFF6FF" },
+          { key:"wtd", label:"WTD", color:"#0891B2", bg:"#ECFEFF",
+            disabled: (weekComp?.periods?.wtd?.data||[]).filter(r=>
+              (r.salesman||"House").toLowerCase()===repName.toLowerCase()).length === 0 },
+        ].map(t => (
+          <button key={t.key} onClick={()=>!t.disabled&&setAcctPeriod(t.key)}
+            style={{ fontSize:"0.72rem", fontWeight:700, padding:"0.3rem 0.9rem",
+              borderRadius:6, border:"none", cursor: t.disabled?"not-allowed":"pointer",
+              background: acctPeriod===t.key ? t.color : t.bg,
+              color:       acctPeriod===t.key ? "#fff"  : t.color,
+              opacity:     t.disabled ? 0.4 : 1 }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div style={S.kpiRow}>
         <div style={S.kpi(AMBER)}>
           <div style={S.kpiVal}>{fmt(totalYTD26)}</div>
@@ -4036,7 +4060,7 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
       <div style={S.kpiRow}>
         <div style={S.kpi(color)}>
           <div style={S.kpiVal}>{fmt(isFiltered ? filtTotal26 : total26)}</div>
-          <div style={S.kpiLbl}>{isFiltered ? `${cityFilter} 2026 Sales` : "2026 YTD Sales"}</div>
+          <div style={S.kpiLbl}>{isFiltered ? `${cityFilter} 2026 Sales` : `2026 ${periodLabel} Sales`}</div>
         </div>
         <div style={S.kpi(clr((isFiltered ? filtTotal26 : total26)-(isFiltered ? filtTotal25 : total25)))}>
           <div style={{ ...S.kpiVal, color: clr((isFiltered?filtTotal26:total26)-(isFiltered?filtTotal25:total25)) }}>
