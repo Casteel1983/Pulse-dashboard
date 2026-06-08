@@ -2601,8 +2601,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Weekly upload reminder banner ── */}
-      {!dismissedWarning && (warningInfo.isOverdue || warningInfo.isPending) && (
+      {/* ── Weekly upload reminder banner — DISABLED ── */}
+      {false && !dismissedWarning && (warningInfo.isOverdue || warningInfo.isPending) && (
         <div style={{
           padding: "0.6rem 1.5rem",
           background: warningInfo.isOverdue ? "#FEF2F2" : "#FFFBEB",
@@ -3296,6 +3296,7 @@ function OverviewTab({ weekComp, branchData: propBranchData, onAskAI, onCustomer
 
   return (
     <div>
+
       <div style={S.kpiRow}>
         <div style={S.kpi(AMBER)}>
           <div style={S.kpiVal}>{fmt(totalYTD26)}</div>
@@ -3969,6 +3970,7 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
   const [cityFilter, setCityFilter] = useState("All");
   const [showShared, setShowShared] = useState(true);
   const [acctPeriod, setAcctPeriod] = useState("qtd"); // wtd | qtd | ytd
+  const periodLabel = acctPeriod === "wtd" ? "WTD" : acctPeriod === "qtd" ? "QTD" : "YTD";
 
   // Austin gets shared accounts from other reps where Industrial, OTR, or Farm is the top dept
   const AUSTIN_TARGET_DEPTS = ["INDUSTRIAL TIRES", "OFF THE ROAD TIRES", "FARM TIRES"];
@@ -4033,10 +4035,31 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
 
   return (
     <div>
+      {/* ── Period selector: QTD / YTD / WTD ── */}
+      <div style={{ display:"flex", gap:6, marginBottom:"0.85rem" }}>
+        {[
+          { key:"qtd", label:"QTD", color:"#7C3AED", bg:"#F5F3FF" },
+          { key:"ytd", label:"YTD", color:"#1E5FCC", bg:"#EFF6FF" },
+          { key:"wtd", label:"WTD", color:"#0891B2", bg:"#ECFEFF",
+            off: (weekComp?.periods?.wtd?.data||[]).filter(r=>
+              (r.salesman||"House").toLowerCase()===repName.toLowerCase()).length===0 },
+        ].map(t=>(
+          <button key={t.key} onClick={()=>!t.off&&setAcctPeriod(t.key)}
+            style={{ fontSize:"0.72rem", fontWeight:700, padding:"0.3rem 1rem",
+              borderRadius:6, border:"none",
+              cursor: t.off ? "default" : "pointer",
+              background: acctPeriod===t.key ? t.color : t.bg,
+              color:       acctPeriod===t.key ? "#fff"  : t.color,
+              opacity:     t.off ? 0.35 : 1 }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div style={S.kpiRow}>
         <div style={S.kpi(color)}>
           <div style={S.kpiVal}>{fmt(isFiltered ? filtTotal26 : total26)}</div>
-          <div style={S.kpiLbl}>{isFiltered ? `${cityFilter} 2026 Sales` : "2026 YTD Sales"}</div>
+          <div style={S.kpiLbl}>{isFiltered ? `${cityFilter} 2026 Sales` : `2026 ${periodLabel} Sales`}</div>
         </div>
         <div style={S.kpi(clr((isFiltered ? filtTotal26 : total26)-(isFiltered ? filtTotal25 : total25)))}>
           <div style={{ ...S.kpiVal, color: clr((isFiltered?filtTotal26:total26)-(isFiltered?filtTotal25:total25)) }}>
@@ -5052,20 +5075,20 @@ function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmi
           { key:"qtd", label:"QTD",  color:"#7C3AED", bg:"#F5F3FF", hasData:true },
           { key:"ytd", label:"YTD",  color:"#1E5FCC", bg:"#EFF6FF", hasData:true },
         ].map(tab => (
-          <button key={tab.key} onClick={()=>setAcctPeriod(tab.key)}
+          <button key={tab.key} onClick={()=>setPeriod(tab.key)}
             style={{ fontSize:"0.72rem", fontWeight:700, padding:"0.35rem 1rem",
               borderRadius:6, cursor:"pointer",
-              border: acctPeriod===tab.key ? "none" : `1px solid ${tab.color}33`,
-              background: acctPeriod===tab.key ? tab.color : tab.bg,
-              color:       acctPeriod===tab.key ? "#fff"    : tab.color,
+              border: period===tab.key ? "none" : `1px solid ${tab.color}33`,
+              background: period===tab.key ? tab.color : tab.bg,
+              color:       period===tab.key ? "#fff"    : tab.color,
               opacity:     tab.hasData ? 1 : 0.5 }}>
             {tab.label}
             {!tab.hasData && <span style={{fontSize:"0.6rem",marginLeft:4}}>(no data)</span>}
           </button>
         ))}
         <span style={{ fontSize:"0.65rem", color:MUTED, alignSelf:"center", marginLeft:4 }}>
-          {acctPeriod==="wtd" ? "Current week" :
-           acctPeriod==="qtd" ? "Q2 Apr 1–Jun 6" : "Full year Jan 1–Jun 6"}
+          {period==="wtd" ? "Current week" :
+           period==="qtd" ? "Q2 Apr 1–Jun 6" : "Full year Jan 1–Jun 6"}
         </span>
       </div>
 
