@@ -3294,31 +3294,8 @@ function OverviewTab({ weekComp, branchData: propBranchData, onAskAI, onCustomer
   const bYTD25 = bSumQ1_25 + bSumQ2_25;
   const bGP26  = Object.values(branchData.branches).reduce((s,b)=>s+b.q1_gp26+b.q2_gp26,0);
 
-  // Period label for display
-  const periodLabel = acctPeriod === "wtd" ? "WTD" : acctPeriod === "qtd" ? "QTD" : "YTD";
-
   return (
     <div>
-
-      {/* ── WTD / QTD / YTD period selector ── */}
-      <div style={{ display:"flex", gap:6, marginBottom:"0.85rem" }}>
-        {[
-          { key:"qtd", label:"QTD", color:"#7C3AED", bg:"#F5F3FF" },
-          { key:"ytd", label:"YTD", color:"#1E5FCC", bg:"#EFF6FF" },
-          { key:"wtd", label:"WTD", color:"#0891B2", bg:"#ECFEFF",
-            disabled: (weekComp?.periods?.wtd?.data||[]).filter(r=>
-              (r.salesman||"House").toLowerCase()===repName.toLowerCase()).length === 0 },
-        ].map(t => (
-          <button key={t.key} onClick={()=>!t.disabled&&setAcctPeriod(t.key)}
-            style={{ fontSize:"0.72rem", fontWeight:700, padding:"0.3rem 0.9rem",
-              borderRadius:6, border:"none", cursor: t.disabled?"not-allowed":"pointer",
-              background: acctPeriod===t.key ? t.color : t.bg,
-              color:       acctPeriod===t.key ? "#fff"  : t.color,
-              opacity:     t.disabled ? 0.4 : 1 }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
 
       <div style={S.kpiRow}>
         <div style={S.kpi(AMBER)}>
@@ -5076,20 +5053,20 @@ function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmi
           { key:"qtd", label:"QTD",  color:"#7C3AED", bg:"#F5F3FF", hasData:true },
           { key:"ytd", label:"YTD",  color:"#1E5FCC", bg:"#EFF6FF", hasData:true },
         ].map(tab => (
-          <button key={tab.key} onClick={()=>setAcctPeriod(tab.key)}
+          <button key={tab.key} onClick={()=>setPeriod(tab.key)}
             style={{ fontSize:"0.72rem", fontWeight:700, padding:"0.35rem 1rem",
               borderRadius:6, cursor:"pointer",
-              border: acctPeriod===tab.key ? "none" : `1px solid ${tab.color}33`,
-              background: acctPeriod===tab.key ? tab.color : tab.bg,
-              color:       acctPeriod===tab.key ? "#fff"    : tab.color,
+              border: period===tab.key ? "none" : `1px solid ${tab.color}33`,
+              background: period===tab.key ? tab.color : tab.bg,
+              color:       period===tab.key ? "#fff"    : tab.color,
               opacity:     tab.hasData ? 1 : 0.5 }}>
             {tab.label}
             {!tab.hasData && <span style={{fontSize:"0.6rem",marginLeft:4}}>(no data)</span>}
           </button>
         ))}
         <span style={{ fontSize:"0.65rem", color:MUTED, alignSelf:"center", marginLeft:4 }}>
-          {acctPeriod==="wtd" ? "Current week" :
-           acctPeriod==="qtd" ? "Q2 Apr 1–Jun 6" : "Full year Jan 1–Jun 6"}
+          {period==="wtd" ? "Current week" :
+           period==="qtd" ? "Q2 Apr 1–Jun 6" : "Full year Jan 1–Jun 6"}
         </span>
       </div>
 
