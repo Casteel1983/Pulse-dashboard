@@ -1692,7 +1692,7 @@ Keep it concise and actionable, written for a sales manager.` }]
 
 export default function App() {
   // Clear any stale upload data from localStorage — data lives in seed only
-  React.useEffect(() => {
+  useEffect(() => {
     const STALE_KEYS = ["pulse_action_plan","pulse_depts","pulse_weeks",
       "pulse_branch_data","pulse_wtd_weekly","pulse_ws_entries",
       "pulse_week_contribs","pulse_periods","pulse_ap_version",
