@@ -13,6 +13,9 @@ const SEED_AR = [{"salesman":"Larry","custNum":200635,"shortName":"DEL","name":"
 // ── File Parsers ──────────────────────────────────────────────────────────────
 function readSheet(wb, name) {
   const ws = wb.Sheets[name];
+  if (!ws) return [];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+}
 
 const SEED_BRANCH_DATA = {"weeklySales":[{"week":1,"Byron":71317.0,"Tifton":45986.0,"Statesboro":46756.0,"Athens":73570.0,"Byron25":163452.0,"Tifton25":124056.0,"Statesboro25":115721.0,"Athens25":115171.0},{"week":2,"Byron":570752.0,"Tifton":383464.0,"Statesboro":481873.0,"Athens":383818.0,"Byron25":377044.0,"Tifton25":303299.0,"Statesboro25":462387.0,"Athens25":273827.0},{"week":3,"Byron":426682.0,"Tifton":376015.0,"Statesboro":404746.0,"Athens":342498.0,"Byron25":425593.0,"Tifton25":246446.0,"Statesboro25":427419.0,"Athens25":349566.0},{"week":4,"Byron":522986.0,"Tifton":351882.0,"Statesboro":380511.0,"Athens":361139.0,"Byron25":247061.0,"Tifton25":162354.0,"Statesboro25":250715.0,"Athens25":268575.0},{"week":5,"Byron":475548.0,"Tifton":308672.0,"Statesboro":415940.0,"Athens":264278.0,"Byron25":320762.0,"Tifton25":262329.0,"Statesboro25":405301.0,"Athens25":254913.0},{"week":6,"Byron":476077.0,"Tifton":349456.0,"Statesboro":370412.0,"Athens":420047.0,"Byron25":474253.0,"Tifton25":350519.0,"Statesboro25":493114.0,"Athens25":354159.0},{"week":7,"Byron":465206.0,"Tifton":318158.0,"Statesboro":436169.0,"Athens":392013.0,"Byron25":420630.0,"Tifton25":308025.0,"Statesboro25":461629.0,"Athens25":386143.0},{"week":8,"Byron":509095.0,"Tifton":433433.0,"Statesboro":471785.0,"Athens":423549.0,"Byron25":421598.0,"Tifton25":305074.0,"Statesboro25":495207.0,"Athens25":352937.0},{"week":9,"Byron":545565.0,"Tifton":454495.0,"Statesboro":440677.0,"Athens":447750.0,"Byron25":388503.0,"Tifton25":356486.0,"Statesboro25":487012.0,"Athens25":332534.0},{"week":10,"Byron":578802.0,"Tifton":470119.0,"Statesboro":497236.0,"Athens":412614.0,"Byron25":634848.0,"Tifton25":414365.0,"Statesboro25":571197.0,"Athens25":375647.0},{"week":11,"Byron":640012.0,"Tifton":543489.0,"Statesboro":504057.0,"Athens":501260.0,"Byron25":475206.0,"Tifton25":301003.0,"Statesboro25":495204.0,"Athens25":403830.0},{"week":12,"Byron":601780.0,"Tifton":423219.0,"Statesboro":468571.0,"Athens":471418.0,"Byron25":453356.0,"Tifton25":300523.0,"Statesboro25":536190.0,"Athens25":364320.0},{"week":13,"Byron":644955.0,"Tifton":459113.0,"Statesboro":537096.0,"Athens":499530.0,"Byron25":397627.0,"Tifton25":315204.0,"Statesboro25":521326.0,"Athens25":359990.0},{"week":14,"Byron":695711.0,"Tifton":524967.0,"Statesboro":518940.0,"Athens":435410.0,"Byron25":531766.0,"Tifton25":342928.0,"Statesboro25":515104.0,"Athens25":404237.0},{"week":15,"Byron":722978.0,"Tifton":441601.0,"Statesboro":487888.0,"Athens":372553.0,"Byron25":591778.0,"Tifton25":382490.0,"Statesboro25":557293.0,"Athens25":549426.0},{"week":16,"Byron":581034.0,"Tifton":394978.0,"Statesboro":514215.0,"Athens":385858.0,"Byron25":596454.0,"Tifton25":334891.0,"Statesboro25":527256.0,"Athens25":454735.0},{"week":17,"Byron":631907.0,"Tifton":422233.0,"Statesboro":519390.0,"Athens":453314.0,"Byron25":484884.0,"Tifton25":357675.0,"Statesboro25":539418.0,"Athens25":324248.0},{"week":18,"Byron":550852.0,"Tifton":443646.0,"Statesboro":521227.0,"Athens":511785.0,"Byron25":519581.0,"Tifton25":396849.0,"Statesboro25":531112.0,"Athens25":347877.0},{"week":19,"Byron":533289.0,"Tifton":470135.0,"Statesboro":501654.0,"Athens":551444.0,"Byron25":595299.0,"Tifton25":430969.0,"Statesboro25":584156.0,"Athens25":381174.0},{"week":20,"Byron":537770.0,"Tifton":401595.0,"Statesboro":463117.0,"Athens":399092.0,"Byron25":488435.0,"Tifton25":327879.0,"Statesboro25":529185.0,"Athens25":381263.0},{"week":21,"Byron":581257.0,"Tifton":378909.0,"Statesboro":475853.0,"Athens":407850.0,"Byron25":550075.0,"Tifton25":395584.0,"Statesboro25":575972.0,"Athens25":405444.0},{"week":22,"Byron":385150.0,"Tifton":287880.0,"Statesboro":425248.0,"Athens":396320.0,"Byron25":444933.0,"Tifton25":347991.0,"Statesboro25":428728.0,"Athens25":387835.0},{"week":23,"Byron":553011,"Byron25":529599,"Byron_gp":82824,"Byron_gp25":82692,"Tifton":455396,"Tifton25":352730,"Tifton_gp":66364,"Tifton_gp25":59574,"Statesboro":480860,"Statesboro25":541660,"Statesboro_gp":58476,"Statesboro_gp25":83856,"Athens":435054,"Athens25":473748,"Athens_gp":62859,"Athens_gp25":77896}],"branches":{"Byron":{"q1_2025":5266440.63,"q1_2026":6822661.29,"q1_gp25":705844.68,"q1_gp26":861094.27,"q2_2025":5266298.78,"q2_2026":5479075.08,"q2_gp25":849992.41,"q2_gp26":740971.02},"Tifton":{"q1_2025":3825950.57,"q1_2026":5138331.47,"q1_gp25":566747.56,"q1_gp26":720485.34,"q2_2025":3593716.46,"q2_2026":4000509.33,"q2_gp25":629905.03,"q2_gp26":564225.82},"Statesboro":{"q1_2025":5835303.76,"q1_2026":5667773.51,"q1_gp25":745163.56,"q1_gp26":639736.99,"q2_2025":5217000.3,"q2_2026":4696448.24,"q2_gp25":808434.14,"q2_gp26":548717.54},"Athens":{"q1_2025":4287894.3,"q1_2026":5220784.25,"q1_gp25":577373.95,"q1_gp26":672226.68,"q2_2025":4013706.14,"q2_2026":4121381.95,"q2_gp25":645715.67,"q2_gp26":542438.81}},"tiftonQ1Depts":[{"dept":"1 - BYRON","sales2025":5266440.63,"sales2026":6822661.29,"gp2025":705844.68,"gp2026":861094.27},{"dept":"3 - STATESBORO","sales2025":5835303.76,"sales2026":5667773.51,"gp2025":745163.56,"gp2026":639736.99},{"dept":"5 - ATHENS","sales2025":4287894.3,"sales2026":5220784.25,"gp2025":577373.95,"gp2026":672226.68},{"dept":"2 - TIFTON","sales2025":3825950.57,"sales2026":5138331.47,"gp2025":566747.56,"gp2026":720485.34},{"dept":"RAD LT TRUCK","sales2025":1519974.15,"sales2026":2014306.08,"gp2025":222260.8,"gp2026":292854.91},{"dept":"TRUCK TIRES","sales2025":1039514.78,"sales2026":1133774.88,"gp2025":124413.63,"gp2026":111761.18},{"dept":"PASSENGER TIRES","sales2025":703217.54,"sales2026":1118847.12,"gp2025":138720.89,"gp2026":189943.94},{"dept":"FARM TIRES","sales2025":263687.6,"sales2026":278661.49,"gp2025":39236.24,"gp2026":33798.0},{"dept":"ST TRAILER","sales2025":111818.91,"sales2026":210417.35,"gp2025":21358.76,"gp2026":43126.35},{"dept":"OFF THE ROAD TIRES","sales2025":94922.14,"sales2026":167685.84,"gp2025":8105.2,"gp2026":14697.57},{"dept":"INDUSTRIAL TIRES","sales2025":26644.71,"sales2026":100424.94,"gp2025":3463.2,"gp2026":9692.53},{"dept":"TUBES","sales2025":41187.21,"sales2026":56254.35,"gp2025":8705.12,"gp2026":12141.58},{"dept":"GA EPD FEE","sales2025":20908.04,"sales2026":22857.42,"gp2025":0.04,"gp2026":0.42},{"dept":"VALVE STEMS","sales2025":527.18,"sales2026":16268.09,"gp2025":252.4,"gp2026":5252.01},{"dept":"WHEEL WEIGHTS","sales2025":206.21,"sales2026":9524.49,"gp2025":91.52,"gp2026":4431.67},{"dept":"TIRE TOOLS","sales2025":249.53,"sales2026":9513.72,"gp2025":67.84,"gp2026":2833.74},{"dept":"PATCHES AND REPAIR","sales2025":519.39,"sales2026":4511.29,"gp2025":161.42,"gp2026":1482.06},{"dept":"LAWN & GARDEN","sales2025":2881.42,"sales2026":4320.11,"gp2025":581.49,"gp2026":848.16},{"dept":"WHEELS","sales2025":1876.75,"sales2026":2216.06,"gp2025":285.71,"gp2026":635.91},{"dept":"MOUNTING LUBE","sales2025":260.79,"sales2026":1659.5,"gp2025":72.42,"gp2026":686.18},{"dept":"ALIGNMENT SHIMS","sales2025":0.0,"sales2026":719.96,"gp2025":0.0,"gp2026":243.44},{"dept":"FREIGHT CHARGES","sales2025":0.0,"sales2026":171.0,"gp2025":0.0,"gp2026":76.0},{"dept":"OUTSIDE PURCHASE","sales2025":354.31,"sales2026":96.0,"gp2025":66.38,"gp2026":0.0}]};
 
@@ -3952,6 +3955,7 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
   const color = REP_COLORS[repName] || AMBER;
   const [cityFilter, setCityFilter] = useState("All");
   const [showShared, setShowShared] = useState(true);
+  const [acctPeriod, setAcctPeriod] = useState("qtd"); // wtd | qtd | ytd
 
   // Austin gets shared accounts from other reps where Industrial, OTR, or Farm is the top dept
   const AUSTIN_TARGET_DEPTS = ["INDUSTRIAL TIRES", "OFF THE ROAD TIRES", "FARM TIRES"];
@@ -3968,7 +3972,21 @@ function RepTab({ repName, weekComp, onAskAI, onCustomerClick, customers, inacti
   });
 
 
-  const ownAccounts = (weekComp?.actionPlan || []).filter(a => a.salesman.toLowerCase() === repName.toLowerCase());
+  // ── Pick dataset based on selected period ──────────────────────────────
+  const wtdData    = weekComp?.periods?.wtd?.data || [];
+  const baseAccounts = acctPeriod === "wtd"
+    ? wtdData.map(r => ({
+        ...r,
+        sales2026: r.sales2026 ?? 0,
+        sales2025: r.sales2025 ?? 0,
+        action: r.sales2026 > r.sales2025*1.05 ? "GROW" :
+                r.sales2026 < r.sales2025*0.90 ? "LOST" : "WATCH",
+        topDept: r.topDept || "",
+      }))
+    : (weekComp?.actionPlan || []);
+
+  const ownAccounts = baseAccounts.filter(a =>
+    (a.salesman||"House").toLowerCase() === repName.toLowerCase());
 
   const austinShared = isAustin
     ? (weekComp?.actionPlan || []).filter(a =>
@@ -5011,6 +5029,32 @@ function LeadsTab({ leads, repName, onAddLead, onDeleteLead, currentUser, isAdmi
           </button>
         </div>
       )}
+
+      {/* ── WTD / QTD / YTD period selector ── */}
+      <div style={{ display:"flex", gap:6, marginBottom:"0.75rem", flexWrap:"wrap" }}>
+        {[
+          { key:"wtd", label:"WTD",  color:"#0891B2", bg:"#ECFEFF",
+            hasData: (weekComp?.periods?.wtd?.data||[]).filter(r=>
+              (r.salesman||"House").toLowerCase()===repName.toLowerCase()).length > 0 },
+          { key:"qtd", label:"QTD",  color:"#7C3AED", bg:"#F5F3FF", hasData:true },
+          { key:"ytd", label:"YTD",  color:"#1E5FCC", bg:"#EFF6FF", hasData:true },
+        ].map(tab => (
+          <button key={tab.key} onClick={()=>setAcctPeriod(tab.key)}
+            style={{ fontSize:"0.72rem", fontWeight:700, padding:"0.35rem 1rem",
+              borderRadius:6, cursor:"pointer",
+              border: acctPeriod===tab.key ? "none" : `1px solid ${tab.color}33`,
+              background: acctPeriod===tab.key ? tab.color : tab.bg,
+              color:       acctPeriod===tab.key ? "#fff"    : tab.color,
+              opacity:     tab.hasData ? 1 : 0.5 }}>
+            {tab.label}
+            {!tab.hasData && <span style={{fontSize:"0.6rem",marginLeft:4}}>(no data)</span>}
+          </button>
+        ))}
+        <span style={{ fontSize:"0.65rem", color:MUTED, alignSelf:"center", marginLeft:4 }}>
+          {acctPeriod==="wtd" ? "Current week" :
+           acctPeriod==="qtd" ? "Q2 Apr 1–Jun 6" : "Full year Jan 1–Jun 6"}
+        </span>
+      </div>
 
       {/* KPI strip */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"0.6rem", marginBottom:"1rem" }}>
