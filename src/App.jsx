@@ -2921,90 +2921,1922 @@ Keep it punchy — 4 short paragraphs max. Write for a Monday morning sales meet
 // ── MSR — Monday Sales Review Tab ─────────────────────────────────────────────
 const SEED_MSR = [
   {
+    id: "msr_20260608",
+    date: "2026-06-08",
+    weekNum: 23,
+    title: "W23 Sales Meeting — June 8, 2026",
+    headline: "GP% hits 14.3% — 7th consecutive weekly improvement from W14 low of 11.4%. Revenue up $27K (+1.5%) despite RAD LT Truck headwinds. TAG program live, supplies commission expanded to all reps effective June 1.",
+    briefSummary: "W23 revenue $1.9M (+1.5%). GP% 14.3% — steady climb from 11.4% in W14. RAD LT Truck -26.4% units remains primary drag (Venom/Predator/Nexon portfolio gap). Passenger +13%, OTR +59%, Industrial +189%. TAG launched; all reps added to supplies commission retro June 1. Ed joined team.",
+    sections: [
+      { label: "📊 W23 Performance", color: "#DC2626", bullets: ["Units: 13,945 — down 352 from PY", "Revenue: $1.9M vs $1.887M PY — UP $27K (+1.5%)", "GP Dollars: $270K vs $304K PY — DOWN $33.5K (-11%)", "GP%: 14.3% — 7th straight weekly increase from W14 low of 11.4%", "Break-even threshold $250K front-side; $270K solid above floor", "Monday trending at 15.8% GP — momentum continuing"] },
+      { label: "✅ Bright Spots", color: "#059669", bullets: ["Passenger: units +13% (+546), sales +$41K, GP +$6K — growth with margin", "OTR: sales +59.4%, GP dollars up — healthy growth with healthy margin", "Industrial tires: units +189%, sales +136%, GP +73%", "Accessories (weights, valves, patches, lube): solid increases continuing", "TBR moved out of bottom slot — 3-4 containers queued, big numbers coming", "Economy container hitting this week — strong build-out ahead"] },
+      { label: "⚠️ RAD LT Truck — Primary Headwind", color: "#D97706", bullets: ["Units -1,516 (-26.4%), Sales -$133K (-18.3%), GP -$37K", "Root cause: Venom Power, Predator, Pranks (blemish), Nexon — all exited; volume not replaced", "Remaining stock: ~40 Venom, 200-300 Pranks co.-wide, handful Nexon", "Action this week: Review Black Hawk / OPP segment pricing — any tweaking on Pranks?", "Economy round-2 inventory in warehouse — move it out immediately", "If RAD LT flat YOY, would have beaten GP dollars by ~$4K"] },
+      { label: "📦 Inventory (Scott)", color: "#7C3AED", bullets: ["Value: $21.7M (up from $21.1M); more inbounds arriving", "Black Hawk containers ordered; transfers to all locations sending today", "BFR 57s: 4 trailer loads (11R 22.5 + Low Pro 22.5) split Byron/Statesboro/Tifton/Statum", "Low Pro 22.5 this shipment = 14-ply (not 16) — communicate to teams", "Containers ETA: first part of July for main Black Hawk order", "Obsolescence: ~$1.5M (Americus overstocked, Mickey Thompson, X, Otsu, tubes/solids)", "Strategy: Local set opportunities; consider auction/bid lot model for singles (Treadmax style)", "GeoQuest stock dwindling at Tifton — Hunter flagged; container report being compiled"] },
+      { label: "🏆 Rep Wins", color: "#0891B2", bullets: ["Austin: Atlanta Commercial → Maxim 930s (28L26/23126) — quick access, better margin vs Primex. Russell TAG enrolled + Black Hawk expanded. Ascenso Florida drop-ship leads growing (Boulevard, Snyder, Conlon). Galaxy industrial solids — Dan repeat orders, no Maxim competition in segment", "Jay (Parker): Atlanta Commercial 11-store signup (Byron + Tifton). Global Tires 5-store signup (tax ID restructure = Tier 2 TAG). Hayes/Russell TAG enrolled — potential Tier 1 at $1.2M/yr if Salem PLT → Black Hawk", "Tiffany: Toyota dealership TPMS sensor opportunity ($30 bulk sensors). Statesboro fully organized — market blitz this week. Toyo program growing with Jaylen", "Ryan: Benji's Truck & Trailer (Barnwell) — new TBR, ordered 4×11R 24.5 on signup. New Thompson account (Marvin) — 60-tire order pending; vs Gateway + NTW. Kudos from Hazlehurst/Baxley customers on service + drivers (Reverend Ronnie)", "Jonathan: Athens Braves promo launched — good traction. Global Tire — Victor ordered 100 TPMS + ongoing repair supplies. Mike's Tire Depot signed while in Covington"] },
+      { label: "🎯 TAG Program — Live", color: "#1E5FCC", bullets: ["Now live after ~1 year — qualified dealer list sent by Tom (Q1 + Q2 through May)", "Philosophy: Cream-of-crop only — don't add dealers who can't realistically hit payout", "Multi-store accounts not rolled up by design (unknown EIN structures) — call Tom/Sean/Scott for eligibility", "Payout: Via 3rd-party admin (not TDG) — ACH, check, or rewards card", "Pilot dealers: retro to Jan 1. New Q2 signups: paid for full Q2 (Apr 1+). Case-by-case for outliers", "SOS and Puzzle enrollments ready — distributor info to finalize", "Atlanta Commercial, Global Tire, Rathfield — need sidebar discussions on multi-store rollup"] },
+      { label: "💰 Supplies Commission — All Reps (June 1)", color: "#059669", bullets: ["Valve stems, patches, repair material, lube, wheel weights added to ALL rep commissions retro June 1", "Tiffany (Tifton/Statesboro) and Jonathan (Athens/Byron) structure unchanged — they keep leading", "Goal: Accelerate supply growth by having every rep actively promoting the category", "TireLink supply keyword search improved — full supplies dropdown live on dealer website", "Dunlop Blue Response: buy-4-get-1 promo active — promote to dealers", "Tiffany notepad win: Columbus Tire customer using TDG pads, replaced competitor notepad — real brand presence"] },
+      { label: "📖 Dunlop Brand Story", color: "#D97706", bullets: ["Sumitomo reclaimed Dunlop from Goodyear — Goodyear damaged the brand", "Sumitomo markets Dunlop AHEAD of Sumitomo in Japan — OE heritage brand there", "Now Japanese-built, returning to OE — recognizable brand = easier counter sell at margin", "Not cheapest, but dealers who push it can make money on brand recognition", "Action: Two-brand one-pager (Dunlop + Senzo) — brief story + logo for field use", "Senzo parallel: History story (Alliance/Galaxy/Primex/BKT engineering) changes dealer perception instantly"] },
+      { label: "📌 Action Items", color: "#6B7A99", bullets: ["Scott: RAD LT Truck / OPP pricing review this week", "Scott: Move Economy round-2 inventory now; compile container report for reps", "Scott: Build local sets list from obsolescence items", "All reps: ST trailer — carry physical tire, show-tell-sell every store visit", "All reps: Supplies commission active — include repair material in every customer conversation", "Jay: Finish TAG prospects; sign Ricky; identify Toyo/Yoke/Dunlop/BFS dealers NE of branch", "Tiffany: Statesboro market blitz with full supply materials this week", "Austin: SOS + Puzzle TAG enrollments — finalize distributor info", "Team: Text Chris today; GoFundMe ~2/3 funded (link in Ed's email)"] },
+      { label: "🆕 Team & Industry", color: "#94A3B8", bullets: ["Ed joined: industry veteran, distribution focus — working with John and Sean on future strategy", "Travis Hicks resigned from GA Tire Dealers Association presidency (Friday, July 18 convention approaching)", "Georgia Tire Dealers Convention: July 18, Lake Lanier — rooms sold out; working to open additional room blocks", "Silence is agreement. — Ed"] }
+    ],
+    transcript: `sales meeting 06-08-2026
+
+speaker1 00:00:00
+Next in line with family is the tire business. I'll sit here and tell you that I love the tire business.
+
+speaker1 00:00:06
+I know that at times it's different from the rest of automotive.
+
+speaker1 00:00:13
+It has its own differences even as an entrepreneurial business.
+
+speaker1 00:00:19
+The entrepreneurial side of it, I like the distribution side. I've always been in love with the distribution side of it.
+
+speaker1 00:00:28
+a great future. And that's the primary reason why I'm hooking back up and connecting back with John, but mostly Sean, to help with the focus on the future of what tire distribution looks like and how we can serve it best.
+
+speaker1 00:00:46
+So that's my 11 second elevator speech. That's why I'm here, to serve tire distributors best in its view of how They strike the market for the future. If anybody has anything to contribute to that, I'm wide open.
+
+speaker1 00:01:07
+My ears are wide open. I'm looking forward to working with everybody and trying to find a way in which we can be nothing but the best.
+
+speaker1 00:01:21
+So with that, I wish everybody the best.
+
+speaker2 00:01:26
+Thank you, Ed. Yep, we're excited to have you join us and thankful for what you can contribute.
+
+speaker2 00:01:35
+There's definitely a lot of opportunity and it's changing every day.
+
+speaker2 00:01:40
+And so you got to figure out the best angle of attack on it day in and day out.
+
+speaker2 00:01:46
+And unfortunately, guys, I guess it's true that once you're in it, you can't get out of it because it sucked him back in after a year and a half. We're all screwed.
+
+speaker2 00:01:57
+Jim Vickers too.
+
+speaker1 00:01:59
+Jim Vickers hasn't escaped.
+
+speaker2 00:02:02
+Or Gene. Gene retired and came back too.
+
+speaker3 00:02:04
+That's like the fourth time he's done that.
+
+speaker1 00:02:08
+I think Jim Vickers is a youngster.
+
+speaker3 00:02:11
+I mean, he retired from Western twice while I was there.
+
+speaker1 00:02:15
+It's true.
+
+speaker2 00:02:16
+He just likes the I got rubber blood.
+
+speaker3 00:02:20
+He gets bored of those.
+
+speaker1 00:02:25
+I guess it becomes a part of your DNA, but there's other people who will look at it like a life sentence. It is part of my DNA.
+
+speaker1 00:02:36
+92, I believe.
+
+speaker2 00:02:39
+All right, Gene, how old are you, Gene? 71.
+
+speaker2 00:02:43
+Okay.
+
+speaker3 00:02:46
+All right.
+
+speaker2 00:02:50
+We will get let me get my screen shared and get this week 23 review underway.
+
+speaker2 00:03:07
+All right. Can everybody see what I'm putting down?
+
+speaker3 00:03:12
+Yeah, we got it.
+
+speaker2 00:03:15
+All right. So week 23, We came in at a total unit count of 13,945 units, which was down 352 units from same week prior year.
+
+speaker2 00:03:34
+Radio light truck being the biggest shortfall in week 23 in comparison to 2025.
+
+speaker2 00:03:48
+We know that from our discussions last week that Venom Power or Predator Venom Power were two of the big contributors.
+
+speaker2 00:04:03
+We had some Pranks, Radio Light Truck, as well as Nexon that I believe was in the mix.
+
+speaker2 00:04:13
+that we just no longer have as part of our portfolio and obviously have not made those units up in any way either.
+
+speaker2 00:04:26
+Gross sales came in at 1.9 in comparison to 1.887 in the prior year, which was a 1.5% increase.
+
+speaker2 00:04:42
+or \$27,000 increase over prior year.
+
+speaker2 00:04:49
+Gross profit dollars, we saw 270,000 this past week in comparison to 304,000 prior year, which was down \$33,512 for an 11% decrease, which All the tariff activity last year, we knew that coming into these weeks that we were going to be facing a strong headwind and trying to call that.
+
+speaker2 00:05:20
+But being that 250 is break even and we came in at 270 or front side 250 is front side break even. We came in at 270.
+
+speaker2 00:05:29
+That is a good number. And gross profit percentage came in at 14.3.
+
+speaker2 00:05:36
+And again, as we look back over previous weeks, even going back to it looks like week 14 was our low at 11.4%, we have steadily increased the gross profit margin from 1/4 to 1/2 percent every week, and this went in at 14.3.
+
+speaker2 00:05:59
+So steady increase, and we look for that trend to continue. Today was looking good.
+
+speaker2 00:06:07
+It started out at like 15.8. So looking promising.
+
+speaker2 00:06:14
+Our positive notes for the week were passenger units are up 13%, which equated to 546 unit increase.
+
+speaker2 00:06:26
+Sales were up \$41,000 and the Gross profit dollars on passenger were up 6,000.
+
+speaker2 00:06:40
+So we picked up some units, picked up growth with while also increasing the good week for passenger.
+
+speaker2 00:06:53
+OTR sales were up 59%, 59.4. Gross profit dollars were up as well.
+
+speaker2 00:07:02
+So in off-road and farm, when we have seen these increases, sometimes gross profit has been flat or down some.
+
+speaker2 00:07:12
+And so it's good to see the healthy growth with the healthy margin too.
+
+speaker2 00:07:17
+So industrial tires were up 189% in units.
+
+speaker2 00:07:29
+sales dollars up 136% and gross profit dollars up almost 73%.
+
+speaker2 00:07:39
+So still some momentum in the accessory products, the wheel weights, valve stems, tire tools, patches, repairs, lube, all that stuff.
+
+speaker2 00:07:53
+We're still seeing some decent increases there. We'll talk about We'll talk about those categories here after we get out of this review though.
+
+speaker2 00:08:05
+Our headwinds remain radio light truck as we talked about at the beginning of the call.
+
+speaker2 00:08:11
+It was down 1,516 units for a 26.4% decrease in units.
+
+speaker2 00:08:18
+Sales were down 18.3% for a total of 133,000 and gross profit dollars took a hit of If we could have just maintained this one department, we could have, and just flat in comparison to last year, we could have beat out the gross profit dollar in comparison to last year, being down 37,000 and only coming up short 33,000. So
+
+speaker2 00:08:56
+That department is, Tom and I were talking this morning before the call, just checking in.
+
+speaker2 00:09:04
+This department we're going to look into this week and just look at pricing and see if there's any tweaking that can be done on Black Hawk pranks on the OPP segment because that is where this whole decrease right here is coming from.
+
+speaker1 00:09:23
+Can I ask a question? Is there any remnant inventory on Prinks or Venom Power that needs to be moved?
+
+speaker2 00:09:30
+There is very few and I'm saying like maybe 40 units on Venom Power and Prinks there are maybe 200, 300 units company wide, very little. And then there's just a handful of Nexon too.
+
+speaker2 00:09:58
+I believe we were down to just a few \$1000 worth of Nexon inventory as of a few weeks ago.
+
+speaker1 00:10:06
+So there's an error opportunity there to fire it up and give it a new home.
+
+speaker2 00:10:14
+There is for sure.
+
+speaker4 00:10:17
+Sean, you're saying pranks, but do you mean predator?
+
+speaker2 00:10:21
+No venom and predator. No, it was the, last year we had that blemish stuff and pranks that we were moving.
+
+speaker4 00:10:30
+Got it.
+
+speaker2 00:10:31
+Yep. And then we got some of that, from that round two from economy that we've got back in the warehouse that we could, that we could sling.
+
+speaker4 00:10:44
+Yeah, I forgot about that.
+
+speaker2 00:10:47
+I think, Troy, did you, did you guys get that stuff unloaded yet? Is it in inventory or is it?
+
+speaker4 00:10:53
+It's in inventory.
+
+speaker3 00:10:54
+I don't think you were coming in today.
+
+speaker2 00:10:55
+We need to we need to pounce on that today and go ahead and get that stuff out of here.
+
+speaker3 00:11:07
+I just want to get out of the house.
+
+speaker2 00:11:08
+I didn't know where it was at. I haven't slept.
+
+speaker1 00:11:19
+What product replaced those two items?
+
+speaker2 00:11:24
+A crash out of my place. Nothing.
+
+speaker2 00:11:29
+We were doing Venom and it was just an import brand that we were being forced to sell at 10, 12, 13 percent just due to competitors in the market. And so we parted parted ways with it, tried the predator route. It just never, it would just, we can never get it going the way we needed it to move to justify ordering it by the container load.
+
+speaker1 00:12:04
+Pardon the pun, but I guess there was no traction in it.
+
+speaker2 00:12:07
+None. None.
+
+speaker2 00:12:12
+Pardon the pun. I mean, I say none.
+
+speaker2 00:12:15
+There was some, it just wasn't enough to support steady order cadences and things like that.
+
+speaker2 00:12:26
+I mean, just to ensure that we had the product that we needed at all times.
+
+speaker2 00:12:31
+It just wasn't, just didn't make sense to continue on with it. Low margin too.
+
+speaker1 00:12:40
+Understood.
+
+speaker2 00:12:46
+All right, farm tires. We had been seeing some action and some growth on farm in previous weeks.
+
+speaker2 00:12:54
+This week it came in, it was down 71 units for a 33.8% decrease.
+
+speaker2 00:13:05
+Sales were down \$11,000 and gross profit down 3,600. St.
+
+speaker2 00:13:15
+trailer still believe that there is a lot of opportunity in St.
+
+speaker2 00:13:22
+trailer, especially given the amount of inventory that we have on hand in that segment.
+
+speaker2 00:13:27
+It was flat with a three unit increase and sales were up \$4,800, which essentially was the inflation from the tariff stuff versus last year.
+
+speaker2 00:13:44
+And then, but gross profit dollars were down \$1,355.
+
+speaker2 00:13:51
+So not exactly, while units were flat, we did go backwards in gross profit dollars moving the same amount of tires.
+
+speaker2 00:14:04
+So at a higher cost or at a higher price too. So Not necessarily ideal. I think we do have some of that stuff that's on special, which could have been the result of the \$1,300 gross profit dollar loss.
+
+speaker2 00:14:21
+But anyway, we need to be talking St. trailer in every single store that we go into.
+
+speaker2 00:14:31
+Every tire dealer that we encounter sells 13, 14, and 15 inch St. trailer.
+
+speaker2 00:14:44
+All right.
+
+speaker2 00:14:54
+Go ahead. Does anybody have any comments on the department recap for week 23 before we move on?
+
+speaker2 00:15:11
+I will say this, it was nice to see truck tires up in the four spot and not at the bottom this week. But we've got What do we have guys, three or four TBR containers to build out here in the next few weeks.
+
+speaker2 00:15:32
+And so we should see some big numbers post for truck tires in the near future.
+
+speaker2 00:15:46
+Also saw an economy container hit as well. So we'll get that built this week and we'll post some big numbers.
+
+speaker2 00:15:58
+All right, Scott, take it away.
+
+speaker4 00:16:03
+Morning, everybody.
+
+speaker2 00:16:04
+Morning.
+
+speaker4 00:16:06
+We had a slight blip upwards in inventory value from last week. We were at 21.1.
+
+speaker4 00:16:16
+This week we're coming in at 21.7. likely see more inbounds arriving.
+
+speaker4 00:16:24
+I was looking at the calendars this morning. It looks like they're starting to fill back up again.
+
+speaker4 00:16:29
+And then in the coming weeks, we've got a ton of inventory coming in.
+
+speaker4 00:16:32
+So that prime time selling season, we should have plenty of product.
+
+speaker4 00:16:38
+I did place Black Hawk containers late last week, and I'll be punching in some transfers to get some product moved around to each of the locations. So I'll send that out later this afternoon.
+
+speaker4 00:16:53
+with the details of those transfers. In talking to Black Hawk last week on our biweekly meeting, I guess production's been thrown off a little bit with snow tire production kind of pushed us around a little bit.
+
+speaker4 00:17:12
+So there might be a little bump in the road down a couple months with some product landing. But we'll keep an eye on that and see how that shakes out.
+
+speaker4 00:17:24
+The BFR 57s, I think I mentioned last week that I was working to get something put together there.
+
+speaker4 00:17:30
+We were able to get 4 trailer loads of that product between the 11R 22.5 and the Lowepro 22.5.
+
+speaker4 00:17:40
+And what I did was I split it up between sister stores, so Byron Statum, each got one of each size.
+
+speaker4 00:17:48
+And then we'll kind of swap between the two. And same with Tifton and Statesboro.
+
+speaker4 00:17:54
+So we'll get that stuff moved around. So everybody should have some of that in stock to kind of hold us over until we get our containers rolling in, which will be first part of July is the ETA that's currently showing for that stuff.
+
+speaker4 00:18:09
+As a heads up, the what was it the low pro 22.5 We had been stocking the 16 ply.
+
+speaker4 00:18:18
+They did not have the 16 ply with the trailer loads that I ordered. It's the 14 ply.
+
+speaker4 00:18:22
+So just be aware of that. But that should still work and should still hold us over.
+
+speaker4 00:18:27
+So we should be in good shape. Outside of that, I don't believe I've got anything else.
+
+speaker4 00:18:40
+Yeah, I think that's it. Did anybody have any specifics they needed to Find out about.
+
+speaker2 00:18:55
+What did you say that they were shipping those trailer loads, Scott?
+
+speaker4 00:19:01
+When or where?
+
+speaker2 00:19:02
+Atlantic on the Black Hawk Low Pro 22 fives. Were they shipping that those already ship or were they shipping this week?
+
+speaker4 00:19:09
+Yes, so most, if not all of those have shipped already.
+
+speaker4 00:19:14
+We just need to get the kind of split between the two sister stores. Tipton and Statesboro and State of and Byron.
+
+speaker4 00:19:22
+Don't they have to get set up in the system?
+
+speaker3 00:19:25
+I got to get set up.
+
+speaker4 00:19:26
+There's like 319 of the low pros on a trailer and around 300 of the 11 on our 22 fives.
+
+speaker3 00:19:33
+I'm going to put it in today. Are you just?
+
+speaker2 00:19:35
+Wearing tests to set it up individually.
+
+speaker4 00:19:45
+No questions, nothing. Everybody's good.
+
+speaker2 00:19:50
+Inventory's perfect.
+
+speaker4 00:19:52
+Yeah, right. Never.
+
+speaker3 00:19:57
+I'm sure there'll be plenty of emails coming across your desk soon. Scott.
+
+speaker4 00:20:02
+I knew you'd speak up, Hunter. I knew you'd speak up.
+
+speaker2 00:20:08
+What are you out of, Hunter? Everything.
+
+speaker3 00:20:11
+No, not everything, but we're starting to we're starting to dwindle through a lot of the GeoQuest stuff and you know makes me nervous for Advanced.
+
+speaker4 00:20:25
+I will try to put together, I know you had kind of requested it last week, Hunter, the container report like I've done previously, just to send out to everybody so everybody can kind of keep an eye on specifics as they need them.
+
+speaker3 00:20:38
+Yeah, I'm just trying to see if we can keep some of my guys off your back too much.
+
+speaker4 00:20:46
+That'll work.
+
+speaker1 00:20:53
+There's an expression that I wanted to get everybody to at least chuckle at. Silence is agreement.
+
+speaker2 00:21:04
+That's the way I take it for sure.
+
+speaker1 00:21:08
+Yeah.
+
+speaker2 00:21:14
+All right. Thank you, Scott.
+
+speaker4 00:21:18
+You bet.
+
+speaker2 00:21:20
+How much was on that Odes list that you had put together the other day?
+
+speaker2 00:21:26
+What was the, you just write off, do you remember the quantity and dollar amount on hand that we were looking to football on old stock?
+
+speaker4 00:21:37
+Oh, I don't, but let me pull it up real quick. You talking about obsolescence stuff I sent over?
+
+speaker4 00:21:51
+So it equates to about a million and a half dollars. And let me share my.
+
+speaker4 00:22:00
+So it equates to about a million and a half dollars. And it's just a smorgasbord of different things that we've, you know, either got odds and ends left over, tube and solid tire.
+
+speaker4 00:22:13
+Gosh, there's, I mean, there's just a good chunk of it is Americus that we're just crazy overstocked on that we just need to get out the door.
+
+speaker4 00:22:23
+But majority of it's just, Mickey Thompson, X and Otsu, just odds and ends that we've had in stock forever that just need to go, need to turn the dollars and put it into some good stuff.
+
+speaker1 00:22:40
+Is there a way to look at what we have that's obsolete that are sets and see if we can push sets somehow?
+
+speaker4 00:22:50
+Yeah. I can certainly twist this to look at just sets.
+
+speaker1 00:22:55
+If we can have a sets list and maybe the sales folks as they're making calls say, look, if you need 4 bangers at a decent deal, here it is. We can do each other a favor.
+
+speaker1 00:23:10
+I guess that's the way to frame it.
+
+speaker4 00:23:12
+Yeah, a reply to that would be so if Obviously, if we have a set in a location, that's easy.
+
+speaker4 00:23:18
+You can go to market with that. If we have a set that's spread across four locations, do we want to spend the time to compile those into one location?
+
+speaker1 00:23:27
+Well, I think that becomes a local and local only type of opportunity.
+
+speaker1 00:23:36
+I wouldn't say let's transfer the life out of the organization, but If on a local basis, if I had these here and they're a set, there might be an opportunity for who's who in the zoo.
+
+speaker2 00:23:50
+Yeah, on the so when Scott sent us over on the Mickey Thompson stuff and especially I guess on the off road products, there just there wasn't a lot of sets and it's a lot of singles and Yep, there you go.
+
+speaker2 00:24:10
+You've got it. You've got it pulled up or threes.
+
+speaker4 00:24:14
+And just one one that actually has a full set.
+
+speaker2 00:24:17
+So unless like Whistling Diesel's building some kind of like crazy tricycle or something, we're probably not going to stand a chance of selling any.
+
+speaker2 00:24:30
+But, you know, could we highly discount them and then let them source one from Western Distributors or whoever, you know, to make the set then? That's the conversation that's probably going to.
+
+speaker1 00:24:42
+Have to be had. And I know that this probably contradicts what I just said, but if there's an effort to make sets on a macro basis, as long as they're not transferred back, let's look at getting sets into whatever DC has an opportunity to make sets the easiest way possible and give them an opportunity to sell sets.
+
+speaker4 00:25:10
+We can certainly do that.
+
+speaker2 00:25:13
+Yeah, I just don't want to source. I just don't want to buy any more product in it to make a set.
+
+speaker2 00:25:17
+If we can transfer it and make a set, which I just I don't think that actually looks like the only thing that we have for would be that 305 6018 and they're all sitting in Byron already other than what's sitting but two in store 3 but I don't know what did was it Treadmax that used to put out like Auctions or bids?
+
+speaker4 00:25:48
+Yeah, we would lump. Yep.
+
+speaker4 00:25:50
+Do a lot. Yep.
+
+speaker4 00:25:52
+Just kind of put a bunch of a bunch of random tires together and start the bidding process.
+
+speaker4 00:25:59
+You know, this is where we got it as far as the floor and just bit away and it moved some tires.
+
+speaker4 00:26:07
+I mean, you lump a bunch of PLT, TBR and just everything together in little lots and put some enticing stuff in there that they want. So they got to take the rest of it with it.
+
+speaker4 00:26:21
+So and then no returns. it's a done deal.
+
+speaker2 00:26:25
+Yeah.
+
+speaker4 00:26:30
+It was almost kind of like an eBay of sorts.
+
+speaker1 00:26:36
+Well, eBay is an option on our own.
+
+speaker2 00:26:43
+Yeah.
+
+speaker4 00:26:46
+Okay.
+
+speaker2 00:26:51
+Yep, so I guess look out for some special lists that will be coming across soon with these items.
+
+speaker2 00:27:03
+If anybody has any ideas of where their new home could be, then especially like this Mickey Thompson stuff right here.
+
+speaker2 00:27:13
+I mean, I'd be open to making somebody a heck of a deal to take them all.
+
+speaker4 00:27:22
+And just to give a shout out to Mr. Leeper, we are still sitting on his 285 25 20s.
+
+speaker2 00:27:28
+Yeah, I saw that, but we are down to we're down to 20 something of them there.
+
+speaker4 00:27:32
+Yeah, 25.
+
+speaker2 00:27:33
+Yeah.
+
+speaker3 00:27:36
+When you get those staggered fitness like that.
+
+speaker2 00:27:39
+Incredible. All right.
+
+speaker2 00:27:45
+Onward and upward. All right, guys, I do not have the entries, the sales call entries for the week.
+
+speaker2 00:27:56
+So we'll just I'll just call on whoever and give your three wins, three losses, three challenges and objectives for next week.
+
+speaker2 00:28:18
+Jay always emails his over to me the morning of, so I'm going to go ahead and start with Jay. Plus he's on vacation.
+
+speaker2 00:28:27
+I know you probably want to go get on with vacation too, don't you?
+
+speaker4 00:28:35
+He just dropped off.
+
+speaker3 00:28:39
+Starting his vacation now.
+
+speaker4 00:28:40
+He said to heck with it, he's starting vacation now.
+
+speaker2 00:28:43
+All right, Ryan Cates, go ahead and start us off. He texted me earlier, said his mic wasn't working.
+
+speaker2 00:29:02
+Yeah, he's got a question mark by his name. So does Jonathan Willis.
+
+speaker2 00:29:12
+All right, Austin.
+
+speaker5 00:29:18
+Everyone hear me?
+
+speaker2 00:29:20
+We can hear you.
+
+speaker5 00:29:22
+Let's see here. Wins.
+
+speaker5 00:29:32
+Went and spent some time with Russell. He's out of the hospital.
+
+speaker5 00:29:36
+He's healing. He's at work every morning for a few hours.
+
+speaker5 00:29:43
+Good to see him, you know, back healthy or, you know, getting healthy or whatnot.
+
+speaker5 00:29:49
+I got the TAG program, official enrollment from them and Everything seems to be doing, going pretty good there.
+
+speaker5 00:30:02
+told him that common Blackhawk sizes. We got him in another warehouse and getting some other sizes.
+
+speaker5 00:30:11
+So, he'll be good on that line there. Let's see here.
+
+speaker5 00:30:23
+Another win is the Atlanta commercial tire. So I got, after going back and forth with Joe and those guys on mainly 28L26s, some 23126s.
+
+speaker5 00:30:40
+they've been buying the Primex brand and, our lab replenishment came stateside rather than factory direct. So I had to switch them to something that was at least profitable. So I got them, those guys switched over to the Maxim 930s on those.
+
+speaker5 00:31:02
+We can get our hands on them quick and we can make a little money on it. I just let those guys know, they always hear the battle between Maxim and Primex.
+
+speaker5 00:31:15
+I said, look, that's primarily the 35 532.
+
+speaker5 00:31:20
+And some of the 30.532 stuff where every year the machines that they put them on. are higher horsepower.
+
+speaker5 00:31:29
+We never we rarely see any issues. Between the two or within the two with the 28 L's and 23 one so.
+
+speaker5 00:31:39
+He said he'd take a set and. You know, try them out going forward so.
+
+speaker5 00:31:48
+That's good. We can get our hands on them quick.
+
+speaker5 00:31:49
+We can drop ship them and all that.
+
+speaker5 00:31:53
+And, you know, let Joe know, you know, the best price is when we ship them direct to you. So that was actually a bigger win than.
+
+speaker5 00:32:07
+Let me see here. Rent around, you know, went down to see Koi, but North Florida, just letting people know that our Senso inventory's grown, how to see it, how to see store 3, to hover over it. any issues with any of that, give me a call.
+
+speaker5 00:32:27
+And so, that was a win. Industrial solids, Dan's ordered them.
+
+speaker5 00:32:39
+he calls me up, he goes, looking for something and, I had it in Galaxy up and at this. He's like, you've got that?
+
+speaker5 00:32:46
+I said, yeah. So really, I haven't had to do, much different from a procurement standpoint.
+
+speaker5 00:32:53
+I'm going to put another order in this week. What I've been doing is, you know, looking at sellout and I'm trying to get those levels up there in fours and sixes in Byron.
+
+speaker5 00:33:05
+And, you know, we sell a couple or we sell them down or whatnot. I got them, you know, coming in.
+
+speaker5 00:33:13
+because he seems to like to buy twos, fours, things like that.
+
+speaker5 00:33:18
+So, and when you go out there and you look at his inventory, he likely does it when he sells the set he orders a set. And that's what I've noticed a lot of these guys do with the industrial stuff.
+
+speaker5 00:33:32
+So, having it available gets you to sell. And the thing with that is the Maxim brand with Southern Tire Park, they're getting a whole lot of at least what Dan tells me is it's not. it's something he has to compete with them.
+
+speaker5 00:33:48
+We're like on the E3L3 loader tire. But yes, everything's growing a little bit every week.
+
+speaker2 00:33:56
+So. Southern time are not doing the max compress homes.
+
+speaker2 00:34:00
+Is that what's is that what you're saying?
+
+speaker5 00:34:04
+They do. Max compress homes.
+
+speaker5 00:34:09
+It's just that kind of like Dan said it. It's just not something that he necessarily has to compete with them on.
+
+speaker5 00:34:22
+And the solid industrial thing a lot of the time and when I talk to some of these bigger guys is, it makes them complete.
+
+speaker5 00:34:30
+So they go into an organization that has forklifts, container lifts, construction equipment, big trucks. They can, come in there and cover everything.
+
+speaker5 00:34:43
+And I think that's I would think that's one of the reasons he's really in that.
+
+speaker5 00:34:51
+But he just told me you don't really have a lot of competition in it, because I mentioned that a tire brand and let him look at the price file that they sent me and so you can see all the sizes and he just said he wasn't interested in that offering. So In Maxim, it's doing well. We don't have competition with it.
+
+speaker5 00:35:14
+So.
+
+speaker2 00:35:14
+All right. Do we need a trailer car assemblies?
+
+speaker5 00:35:23
+No. Osenzo is trying to get over there.
+
+speaker5 00:35:27
+Man, I'm getting a lot of the big Florida calls. I got to get back down there and, you know, work on this drop ship business, you know, and I told Andrew in the beginning.
+
+speaker5 00:35:39
+I said, look, I know you got Georgia and Florida. You get credit for Georgia and Florida.
+
+speaker5 00:35:42
+We're exclusively in Georgia, but you let me get some of these drop ship accounts down there, your business grows with us based on what we sell, and all that. And he has, so I'm getting calls from Boulevard, Snyder.
+
+speaker5 00:36:06
+the Conlon leads are coming to me. I haven't had anything come to any of the quotes turned to sales quite yet, but I'm getting the leads.
+
+speaker5 00:36:17
+That's another win.
+
+speaker2 00:36:21
+All right.
+
+speaker5 00:36:22
+Mitch.
+
+speaker2 00:36:23
+Good week. Thank you, Austin.
+
+speaker2 00:36:25
+All right, Jay.
+
+speaker5 00:36:27
+Mitchell.
+
+speaker2 00:36:28
+Good to go now. Parker.
+
+speaker6 00:36:29
+I'm trying to hear.
+
+speaker2 00:36:33
+Right, we can hear you.
+
+speaker5 00:36:34
+Yep, I got you.
+
+speaker6 00:36:35
+Okay. Yeah, wins this week, Atlanta commercial.
+
+speaker6 00:36:39
+That's an 11 store sign up. Now cover 3 branches.
+
+speaker6 00:36:44
+So that'll be Byron and Tipton. So that's a nice win.
+
+speaker6 00:36:53
+We're going to get them all bundled up. Thank you, Sean.
+
+speaker6 00:36:56
+Global Tires, that's a five store sign up.
+
+speaker6 00:37:03
+And he is currently redoing his federal tax ID so that he can bundle his store.
+
+speaker6 00:37:11
+So you put them all together, Sean, that's tier 2 tag, which is pretty freaking good. My third win, I had to add a third win.
+
+speaker6 00:37:26
+So I had to run Caitlin up to Clemson for a swim tournament. I'm going there.
+
+speaker6 00:37:32
+I saw the I saw the exit for Royston.
+
+speaker6 00:37:37
+So I called I called Russell Saturday morning. I said, yeah, I'll be here to 10.
+
+speaker6 00:37:45
+So I left Clemson and went down and met with Russell. He was he was wearing shorts and flip flops, man.
+
+speaker6 00:37:53
+He was he was rocking. So he signed up and I showed him where he could double his payout with the switching his Salem PLT over to the Blackhawk.
+
+speaker6 00:38:09
+So that could be up to an annual 1.2 potential for Hayes.
+
+speaker6 00:38:15
+And Austin will tell you this guy's he's animated, but he's very, very good.
+
+speaker6 00:38:26
+if we can, if we can hit that, would be tier one.
+
+speaker6 00:38:32
+That would be quite a win for our basket there.
+
+speaker6 00:38:38
+Concerns, fuel prices still, they're dropping in metro. They're down to 345 this morning.
+
+speaker6 00:38:46
+And that's from just a little over \$4. But it's got to be affecting miles driven.
+
+speaker6 00:38:55
+Just It seems like it is traffic is very light in the metro, although somehow everybody shows up in rush hour.
+
+speaker6 00:39:04
+I don't know how that works. Another concern is if the tag program does go nuclear, which I hope it does, how quickly can Scott adjust our inventory?
+
+speaker6 00:39:20
+So that's a bit of a concern. opportunities.
+
+speaker6 00:39:25
+I need to get out and finish the tag team prospects. I'll be picking up action this week.
+
+speaker6 00:39:33
+Of course, that's 14 stores, but one's in Alabama, and that covers 2 branches. But I'll get those.
+
+speaker6 00:39:42
+I'll get Ricky signed up. And to identify more program dealers for Toyo Yoke.
+
+speaker6 00:39:53
+Dunlop and BFS and all County Banks County, Jackson County.
+
+speaker6 00:40:01
+And those are really just basically northeast of the branch.
+
+speaker6 00:40:07
+I feel like we can close the ranks on that and picked up a new Gainesville customer just last week.
+
+speaker6 00:40:17
+So it's a little harder not to crack than I thought, but who was there hotshot and tires all the time, so me and Austin were trying to push on that. That's my problem.
+
+speaker6 00:40:29
+I'll get over it. That's it.
+
+speaker7 00:40:32
+Tag membership.
+
+speaker6 00:40:33
+I wonder if we even bring it up because sounds like he's forgotten about it.
+
+speaker7 00:40:37
+He hasn't sent nothing to me about it.
+
+speaker2 00:40:40
+Yeah, they come back every couple weeks. Tag team going nuclear.
+
+speaker2 00:40:49
+That'll just be a wait and see. type thing.
+
+speaker2 00:40:52
+But I mean, basically 100, 120 days to react to something like that. So not quick.
+
+speaker6 00:41:03
+I'm cautiously over optimistic.
+
+speaker2 00:41:05
+Yeah.
+
+speaker5 00:41:10
+Oh, Jay, Joe told me Marietta and Cartersville. Yes.
+
+speaker5 00:41:18
+Marietta, Cartersville, Forest Park are the three that they're dispatching OTR out of up there.
+
+speaker6 00:41:24
+Oh, damn good. They got some trucks up there.
+
+speaker6 00:41:26
+Excellent.
+
+speaker5 00:41:27
+Yeah, Cartersville, again, especially the new recap and all that. Excellent.
+
+speaker5 00:41:31
+You know, he's got me, you know, who to go see and all that. So that's going to grow even more.
+
+speaker5 00:41:34
+That's yeah.
+
+speaker6 00:41:35
+Hey, and two, we need we do need to set up Dalton. It's kind of out of range, but we'll work that as needed.
+
+speaker5 00:41:49
+Is that was best drive Cartersville that we delivered a Marietta and they just run down there and pick it up, right?
+
+speaker6 00:41:57
+Yes.
+
+speaker5 00:41:58
+Yeah. Is that something we could do like that?
+
+speaker6 00:42:01
+No, I'm afraid on Cartersville would probably have to hit them. But Dalton, Dalton is.
+
+speaker6 00:42:08
+I mean, that's it's like 20 miles from Tennessee. It's on up there.
+
+speaker6 00:42:14
+It's on up there. So I don't know.
+
+speaker6 00:42:19
+I guess I need to go run it one day and put a time on it.
+
+speaker5 00:42:24
+But Cartersville, that's what the Marietta, right?
+
+speaker6 00:42:28
+Yeah, Cartersville is part of the Gieseling side of things where Dalton, Macon and Southeastern are still on the snow side.
+
+speaker5 00:42:40
+Gotcha. All right, we'll get it done.
+
+speaker6 00:42:47
+Yep. So, and I guess...
+
+speaker5 00:42:50
+We'll go there fatten those guys up a little bit.
+
+speaker6 00:42:52
+Yeah, well, and you know, hell, I keep everybody off those deep dreads, get returns. Man, that's just, you're asking for trouble.
+
+speaker5 00:42:59
+Yeah, I don't want any part in that.
+
+speaker6 00:43:01
+No, hell no. 901s and regular primates.
+
+speaker6 00:43:05
+No, extremes, no 902s. You're correct.
+
+speaker2 00:43:16
+Let's see. Thank you, Jay.
+
+speaker6 00:43:18
+Yes, sir.
+
+speaker2 00:43:19
+All right, Tiffany, take it away. Good morning.
+
+speaker7 00:43:23
+So Wynn is definitely going to be getting easy dealing set up on the tag program, and I've already pre-filled all the information for Lakeland. Just got to get it over to Cam.
+
+speaker7 00:43:35
+Also, a win when I was with Ed, we went and seen a couple of dealerships and where their loss is on the Altel TPMS sensor.
+
+speaker7 00:43:43
+So Toyota has a really good relationship within their Toyota warehouse, but they outsource for supplies and Worth is charging \$30 for the bulk sensors.
+
+speaker7 00:43:55
+So definitely gonna approach them again with some more supplies to see if we can capture maybe more of a gain.
+
+speaker7 00:44:03
+Losses would be everybody needs what you don't have and you try to give them up.
+
+speaker7 00:44:08
+substitution like the all positions everyone needed them last week we had 360 plus of the Green Max in stock so quoted pretty aggressively on those and for some reason they still just they didn't they didn't buy on them so that was that was a challenge because I don't know enough about Green Max in comparison to the Black Hawk AP So I didn't really know my avenues on how to push that as a comparable substitution, if that makes sense. The project for this week is going out to Statesboro.
+
+speaker7 00:44:49
+Was out in Statesboro last week, Tuesday and Wednesday, got all of the supplies organized, situated.
+
+speaker7 00:44:55
+So going out and slandering the market all over the locals in Statesboro is gonna be pretty fun.
+
+speaker7 00:45:02
+because they definitely have the capacity to support it now so those notepads, pens, all the marketing material that I've gotten from a lot of our people are going to go out there with me. Yeah, just hit the locals.
+
+speaker7 00:45:15
+All the locals, all the supplies, anybody we hit 8 to 10 times a day that's not getting something from us, definitely want to make sure that they're starting to get stuff from us.
+
+speaker2 00:45:37
+Sorry, I was muted. Thank you, Tiffany.
+
+speaker7 00:45:39
+You're welcome.
+
+speaker2 00:45:40
+I don't think that, yeah, Green Max is not really a comparable substitute for black caught on the opposition tire.
+
+speaker7 00:45:51
+Man, I got aggressive on the price point too. And they're like, no, we'll wait.
+
+speaker7 00:45:55
+We'll wait on that container.
+
+speaker2 00:45:58
+Yeah.
+
+speaker7 00:46:02
+I'm getting more from Jaylen on the Toyo program.
+
+speaker7 00:46:07
+And anytime he's wanting to purchase a Toyo, he reaches out and I have a couple of more customers that are giving us the opportunity to kind of fill where we haven't been filling.
+
+speaker7 00:46:17
+And so closing a lot more deals, it's just you'll have a full day planned of what you plan to do and a customer will call you in a bond with a farmer in a field. So you got to reroute everything.
+
+speaker7 00:46:29
+to make sure you take care of them and just try to see some people along the route.
+
+speaker2 00:46:34
+All right. Thank you, Tiffany.
+
+speaker2 00:46:52
+Let's see, who else do we have here? Kurt is on and just listening in, but he is on vacation right now.
+
+speaker2 00:47:01
+Got a lot of vacation this week. He'll be back in action tomorrow.
+
+speaker2 00:47:07
+We have got. Ryan, are you still having issues with your mic?
+
+speaker2 00:47:15
+Can you hear me? Yep, we can hear you.
+
+speaker2 00:47:17
+There you go. Take it away.
+
+speaker2 00:47:22
+Had a good week. Wins signed up several new accounts.
+
+speaker2 00:47:31
+Benji's Truck and Trailer Repair would be one of them. TBR customer.
+
+speaker2 00:47:34
+I ignore it all day. As soon as I got them set up, they ordered 411R 24-5 Blackall.
+
+speaker2 00:47:43
+They're out of Barnwell, so it gives us another customer there. And I have two or three more prospects in Barnwell just sending me in their apps.
+
+speaker2 00:47:58
+So hopefully we get a little more out of that way. Other new account was in Thompson on Friday.
+
+speaker2 00:48:15
+It's a shop I've roved by several times just thinking it was just a used tire shop, but Friday it was the busiest spot in Thompson.
+
+speaker2 00:48:22
+I pulled in, walk inside the building and it's just slapped full of new tires.
+
+speaker2 00:48:29
+I talked to the owner, Marvin, got all his info, got him set up.
+
+speaker2 00:48:36
+And as soon as I get this login info, we're he's putting in a 60 tire order.
+
+speaker1 00:48:44
+May I ask who's the competition?
+
+speaker2 00:48:49
+Who's the what now?
+
+speaker1 00:48:50
+Who's the competition? Who's selling them tires now?
+
+speaker2 00:48:54
+It's mainly Gateway. Gateway and NTW.
+
+speaker1 00:49:03
+Well, good luck to you. Sounds good.
+
+speaker2 00:49:12
+You said he was in Thompson. Is that what you said, Ryan?
+
+speaker2 00:49:16
+Yep. Nice.
+
+speaker2 00:49:22
+Let's see. Another win.
+
+speaker2 00:49:24
+I was in Hazlehurst, Baxley area.
+
+speaker2 00:49:29
+And man, just about every customer there just bragged on our service, our drivers. I mean, everything across the board.
+
+speaker2 00:49:36
+And it was It was crazy how I went to three or four different ones that said the same thing.
+
+speaker2 00:49:43
+So good job on warehouse taking care of everybody that way.
+
+speaker2 00:49:47
+I know we're used to, you know, a lot of people tell you that they're complaints, but don't tell you what you're doing good. So that was a good sign.
+
+speaker5 00:49:58
+Is that Ron that way? Is that what driver out that way?
+
+speaker2 00:50:05
+Ronnie Arline.
+
+speaker5 00:50:08
+Yeah, he's going to tell them how good. Yeah, customers seem to like him.
+
+speaker5 00:50:13
+He's funny. Yeah.
+
+speaker5 00:50:15
+And well, it sounds like he's getting there on time too.
+
+speaker2 00:50:20
+The Reverend Ronnie.
+
+speaker5 00:50:23
+Yeah, Reverend Ronnie. That's it.
+
+speaker5 00:50:26
+That's what I was thinking.
+
+speaker7 00:50:28
+I'm guessing Mickey's the one going out to Jasper now.
+
+speaker2 00:50:31
+Hey, the objective. So do we just keep I got to follow up with these guys for the tag program.
+
+speaker2 00:50:38
+And just continue picking up new customers on places we're already going to. She's in Jacksonville.
+
+speaker2 00:50:46
+But apparently they got another girl in Jacksonville too. Way across down to.
+
+speaker2 00:50:51
+All right. Good week.
+
+speaker2 00:50:55
+Yeah. Good job.
+
+speaker2 00:50:57
+Stakes for a branch on getting the kudos from the customers. All right, Jonathan Willis.
+
+speaker2 00:51:05
+If we're not hearing Mickey's name, that means he's getting lazy.
+
+speaker5 00:51:08
+Good morning, everybody.
+
+speaker2 00:51:09
+Good morning. Had a good week last week.
+
+speaker2 00:51:15
+Started the Braves promo in Athens. Got with Jim, got that all sent out on the trucks last week.
+
+speaker2 00:51:24
+Seemed to take a lot of traction. We had a lot of good.
+
+speaker2 00:51:28
+Had a good week up there with supplies. Global Tire come in.
+
+speaker2 00:51:32
+Me and Jay went by there. Victor ended up ordering 100 TPMS sensors while we were there and said he was going to continue to put in just a regular repair items, weights, patches and plugs.
+
+speaker2 00:51:49
+That was a really good one. Mike's Tire Depot jumped on board with it while I was there in Covington and then had a really, really good conversation with Greg at Easton Mountain.
+
+speaker2 00:52:03
+He put in a big valve order while we were there. The challenge this month or this, I guess this week with having that promotion is I leave on vacation this afternoon or first thing in the morning.
+
+speaker2 00:52:19
+So I'll be out all week or the rest of this week. But want to come back and really hit it hard up there and try to try to get as many customers on board.
+
+speaker2 00:52:29
+Like Tiffany said, once you once you get them going, I feel like we will have them as many times as we go to them.
+
+speaker2 00:52:37
+As far as the supplies go, as many times as we supplying customers, just getting a local business and getting everybody on board with the supplies. Other than that, that's about it for the week.
+
+speaker2 00:52:59
+All right. Thank you, Jonathan.
+
+speaker2 00:53:06
+That's it. Forget anybody.
+
+speaker2 00:53:11
+Nick's still out of office.
+
+speaker2 00:53:21
+I think that's it. All right, so a couple things to close us out with.
+
+speaker2 00:53:29
+Tag team program. All of you know we're live with that finally after a year. We sent out a list of qualified or dealers that could easily boost their sales a little bit and qualify for tier one payout on the team program as it stands today for Q2.
+
+speaker2 00:54:01
+Tom sent out Q1 numbers as well as Q2 through May, through the end of May.
+
+speaker2 00:54:10
+If there was not if there is a dealer that was not on that list, or maybe they have multiple stores and only one of their stores was on that list.
+
+speaker2 00:54:21
+We did not do roll up accounts on the list, primarily because we don't know definitively who has just a single EIN number versus they could potentially have an EIN number for every single one of their stores.
+
+speaker2 00:54:39
+We don't know how they're structured as a business.
+
+speaker2 00:54:43
+So if there is an account that has multiple locations and you want to question whether or not they're eligible, just call Tom, myself, Scott. We can give you an answer on that really quick. Just because they're not on that list doesn't mean that they're not eligible.
+
+speaker2 00:55:07
+We just didn't do roll-ups. So like one of them, for instance, I think Global Tire was one of them.
+
+speaker2 00:55:14
+They had one store on there and they only on the list, but they have multiple stores and cumulatively they were like tier 2 or something on payout.
+
+speaker2 00:55:27
+but it was intentional as to why we didn't do roll-ups. Rathfield is another example.
+
+speaker2 00:55:36
+I think only one of their stores was on it. Atlanta Commercial is another one.
+
+speaker2 00:55:39
+But just because their other stores are not on the list does not mean that we're excluding them in any way. We just need to have a conversation about it.
+
+speaker2 00:55:48
+And then secondly, if there's a dealer on there, or if there's a dealer that's not on there, but that you want to sign on the program, we are not looking to sign people on this program just for the hell of it.
+
+speaker2 00:56:07
+We're not looking to just create work for the tag admin team in signing these people and putting them on it just to see if they'll hit it or not.
+
+speaker2 00:56:18
+We need to know that this dealer is capable of buying and getting a payout.
+
+speaker2 00:56:25
+We don't want just a lot of noise on the reporting.
+
+speaker2 00:56:29
+We don't want to be signing people and communicating to a dealer that doesn't stand a chance of doing it.
+
+speaker2 00:56:38
+So this is a cream of the crop type program.
+
+speaker2 00:56:42
+This is something that, you know, the tire pros type customer is what we're is what we're looking for with it.
+
+speaker2 00:56:52
+We're looking at the tire pro the tire pro fighter type program and we want to be very selective and surgical with who we're with who we're signing on it.
+
+speaker2 00:57:06
+So that the round one that list that was put out is what we need to be is what we need to be focusing on.
+
+speaker2 00:57:16
+I know we've got one or two that have been signed before that list was put out. And we'll see.
+
+speaker2 00:57:23
+We'll see what they do. But there needs to be conversation with the dealer surrounding, you know, what can what brands are they buying today from a competitor that they could potentially shift to Black Hawk or Prinks or Pantera, whatever it may be.
+
+speaker2 00:57:44
+to get their purchase volume up with T-Dog.
+
+speaker2 00:57:51
+The second thing is supplies.
+
+speaker2 00:57:59
+Jonathan and Tiffany have done a really good job at ensuring that we have the products that are being sold in the market. And it has been put on them solely to get around and see customers across. Jonathan covers Byron in Athens.
+
+speaker2 00:58:23
+Tiffany's covering Statesboro and Tifton. And while I'm trying to be really patient with it, we've got a ton of inventory and we just frankly need to be selling more than we're currently selling now.
+
+speaker2 00:58:38
+So Ed and I had a conversation. about this last week and Ed said that we should just pay commission to everybody on supplies.
+
+speaker2 00:58:55
+So we've talked about that. We've discussed it.
+
+speaker2 00:58:59
+And so there's no change with Jonathan and Tiffany on this. Tiffany will still be covering Tifton in the Statesboro. Jonathan will still be covering Athens and Byron, but supplies, valve stems, patches, repair, lube, wheel weights will be added back to the commission structure for all the salespeople.
+
+speaker2 00:59:24
+So that is being done because we want to encourage everyone to be out talking about the supply and repair material side of it.
+
+speaker2 00:59:34
+And we really want to grow this business in an aggressive way. So the more people that we have that are benefiting from it and that are out talking about it, then the better chance that we have of growing it at a faster rate than we've currently been able to do it.
+
+speaker2 00:59:50
+So again, this is I'm not in any way saying that Jonathan or Tiffany have not done what they should be doing with it. And again, there's no change to the current structure in which we've been operating at other than, Ryan, Kurt, Nick, Jay, Larry, Austin, you guys will be paid on it moving forward.
+
+speaker2 01:00:15
+So that'll retro back to June 1st and that is the way we're going to we're going to move forward with repairs and material or repair material. and valves, will weights, loop, all that stuff.
+
+speaker2 01:00:33
+Any questions or comments on tag or the supply side of things?
+
+speaker2 01:00:50
+Remember, Ed said silence is agreement.
+
+speaker7 01:00:55
+Shoot, sell the hell out of it.
+
+speaker5 01:00:56
+It starts to be quoted. Are there any changes to the I don't mess it or anything now that they're like the two dealers that I have are now, they were both pilot accounts, I guess you would say.
+
+speaker5 01:01:14
+Now they're officially enrolled or is everything just kind of pretty much the same?
+
+speaker2 01:01:20
+Yeah, no, it'll be. So the way this is going to go, if they were a pilot account, then they will be paid retro back to January 1st.
+
+speaker2 01:01:49
+The way the program is written, if it is a new dealer that is being signed, they are gonna be paid for the quarter that they're signed in.
+
+speaker2 01:02:04
+So technically new dealers would be paid back to, it would be April 1st to the end of June would be their first payout period.
+
+speaker2 01:02:17
+Paul told me before our vendor summit this past year that they would be paying back to January 1st essentially for all tag team members that were signed.
+
+speaker2 01:02:41
+The people that were in that room that I looked in the face and told that they were going to be paid back to January 1st, those guys are going to get paid.
+
+speaker2 01:02:53
+Our 2018, 20 dealers that were there at the meeting, Outside of that, we've got a couple of outliers like Atlanta Commercial Tire that started placing black caulk containers under the impression that they were going to be paid for those containers.
+
+speaker2 01:03:12
+Those purchases are technically going to fall into Q2.
+
+speaker2 01:03:19
+But we're going to get them thrown in back in January 1. There's going to be some one-off stuff that's going to happen retro back to a January 1 case, and then there's going to be some dealers that are signed that are only going to be paid for two and then and beyond.
+
+speaker2 01:03:39
+So there's going to have to be some sidebar discussions on some of these accounts and what their payout period is going to be.
+
+speaker1 01:03:53
+John, can I ask a question? Yep.
+
+speaker1 01:03:56
+The members that are being signed up, let's say effective, that are being signed up in May, are they annualized for the quarter?
+
+speaker1 01:04:07
+In other words, there's three months in that quarter, but they're only participating in two.
+
+speaker1 01:04:14
+Will they be annualized in that quarter and will they be annualized for the year?
+
+speaker2 01:04:22
+They won't for the year, but it would be for the quarter. They would be paid for the court.
+
+speaker2 01:04:27
+they would be paid on the full quarter. So if signed mid quarter, their purchases for that quarter for that entire quarter would be qualified.
+
+speaker2 01:04:40
+And if they obtain by the end of the quarter, if they obtain rate, they will be paid.
+
+speaker2 01:04:48
+And Austin to answer, I guess, part of your question on is there any change Yes, there is a change because the credits are no longer or the money is no longer going to flow through Tire Distributors of Georgia.
+
+speaker2 01:05:02
+It'll flow through the third party that TAG has hired to facilitate the program.
+
+speaker6 01:05:11
+Gotcha.
+
+speaker2 01:05:11
+Whether that's going to be a check or whether that's going to be a rewards card or what it's going to be, that'll It may be up to the dealer, kind of like what Falcon does, where you can do an ACH or you can either do a check or card.
+
+speaker6 01:05:34
+Yeah, that was a question I had from Hayes on Saturday. about that very thing.
+
+speaker6 01:05:41
+All right, that sounds good that a third party is going to be handling that payout. That's nice.
+
+speaker6 01:05:47
+And timing wise, Sean, the big wrap up with Atlanta Commercial really didn't happen to Q2 anyway.
+
+speaker6 01:05:53
+So yeah, I think we'll be, we're good to go. Yeah, I'm good.
+
+speaker6 01:05:58
+I'm just climbing at it in my hand.
+
+speaker5 01:06:01
+I need to answer questions. I'm going to go see SOS this week.
+
+speaker5 01:06:09
+All right.
+
+speaker2 01:06:10
+Is SOS already signed?
+
+speaker5 01:06:13
+Yeah, I got the, let me see here who I sent it to.
+
+speaker2 01:06:22
+Actually, I think I saw, I think I saw theirs come through. I'm asking a question already.
+
+speaker5 01:06:27
+We were supposed to send it to you and Jim, right?
+
+speaker2 01:06:29
+Yeah, I saw it. I saw SOS's.
+
+speaker5 01:06:32
+And the distributor information just needs to be filled in. I guess whatever we got to put on there and that one.
+
+speaker5 01:06:44
+So that one and puzzle are ready.
+
+speaker2 01:07:06
+All right.
+
+speaker2 01:07:22
+All right, that's all that I have. Hey, has anybody heard anything out of Travis Hicks last week?
+
+speaker1 01:07:31
+Totally left field, just curiosity.
+
+speaker2 01:07:38
+I didn't hear nothing personally, but I know he was out and about around town.
+
+speaker1 01:07:44
+Last week.
+
+speaker2 01:07:46
+I believe it was last week, yeah.
+
+speaker5 01:07:50
+I spoke to him about a week ago.
+
+speaker2 01:07:52
+That was week before last, John. That was week before?
+
+speaker2 01:07:54
+Okay, Joy.
+
+speaker1 01:07:59
+He resigned Friday from the Georgia Tire Dealers Association is why I ask.
+
+speaker1 01:08:10
+Did he go work for a manufacturer maybe? He went to work for Atlantic was where he left us and went.
+
+speaker1 01:08:19
+Yeah. Does the Atlanta Tire Dealers and Retraders Association have a Barrier for anybody who works for a manufacturer or somebody like that. Nope.
+
+speaker5 01:08:38
+Yeah, I don't know, but I'll find out.
+
+speaker5 01:08:43
+I'll talk to him sooner or later.
+
+speaker1 01:08:51
+Okay.
+
+speaker5 01:08:54
+Yeah. Last time I talked to him, we didn't talk anything tire related.
+
+speaker5 01:09:00
+We're talking about fishing. But yeah, I didn't know that.
+
+speaker5 01:09:07
+I didn't know that he had backed out of that.
+
+speaker1 01:09:09
+Well, yeah, I mean, this was just Friday evening.
+
+speaker5 01:09:11
+So he's the president, right? Or vice president or something.
+
+speaker1 01:09:14
+He was president. Yeah.
+
+speaker5 01:09:17
+Well, yeah, that's kind of the big thing. Yeah, I hadn't heard anything on that.
+
+speaker6 01:09:27
+I talked to Kirk Kirk Cook on Thursday and he said all the rooms were sold out for Lanier.
+
+speaker1 01:09:37
+He said what now?
+
+speaker6 01:09:39
+All the rooms were sold out for the convention already.
+
+speaker1 01:09:44
+Yeah, they're working on opening up some room blocks.
+
+speaker5 01:09:49
+Yeah, it seems like a lot of people are going this year. Coy, they rented a pontoon boat and it's he and he's got his daughter and Byron and all them that Duncan Natalie with heavy duty SOS. We a lot of people.
+
+speaker5 01:10:10
+But Jonathan, I think he had trouble getting a room one the first night.
+
+speaker5 01:10:15
+But there is a Holiday Inn Express outside the gate.
+
+speaker1 01:10:21
+I told him I told him to give Jonathan a hard time.
+
+speaker2 01:10:24
+There they are.
+
+speaker1 01:10:31
+How close? How?
+
+speaker1 01:10:33
+What is the date of that meeting?
+
+speaker3 01:10:34
+Damn it, what do you say?
+
+speaker6 01:10:39
+That is July 18th, damn it.
+
+speaker1 01:10:41
+July 18th. That's unusual for a resignation of that at that level to be close to something like that.
+
+speaker1 01:10:50
+I'm about to.
+
+speaker6 01:10:52
+Yep.
+
+speaker3 01:10:55
+I feel like something happened Friday from the Georgia Tire Dealers Association.
+
+speaker1 01:11:03
+Well, as they say in the news, it's filming 11 immediately.
+
+speaker3 01:11:08
+Sounds like, sounds to me like it was forced. Basically, Jay, are you going?
+
+speaker3 01:11:14
+Told him he could resign.
+
+speaker6 01:11:16
+Yes, sir.
+
+speaker5 01:11:19
+Awesome.
+
+speaker1 01:11:23
+All right, guys.
+
+speaker6 01:11:25
+And I'll commute if I need to. So it's and I'm not.
+
+speaker6 01:11:29
+I'm not. Yeah.
+
+speaker5 01:11:30
+How far away do you live? Like 20 miles, 30.
+
+speaker6 01:11:32
+Well, 30 miles. 30 miles.
+
+speaker6 01:11:33
+That's not enough. That's not a thing.
+
+speaker5 01:11:36
+Gotcha.
+
+speaker6 01:11:38
+I don't know. Hey, if you can't find a room, maybe you can bunk over here.
+
+speaker6 01:11:41
+So.
+
+speaker5 01:11:43
+No, I already got a room and the baby's coming.
+
+speaker3 01:11:47
+So I was looking to see if we could find a room, but.
+
+speaker5 01:11:51
+I'll have to behave.
+
+speaker3 01:11:52
+I'll have to look.
+
+speaker1 01:11:54
+Yeah, we're we'll get, I'll let you know what Stacy, I had talked to Stacy earlier last week about the rooming situation and she said they were she was working to get more rooms added.
+
+speaker3 01:12:12
+So, Thursday night is the big problem.
+
+speaker1 01:12:19
+It's if you're coming in Friday, and staying Saturday, Sunday, checking out Sunday.
+
+speaker1 01:12:26
+I don't think that's a problem. It's coming in on Thursday.
+
+speaker5 01:12:31
+That the thing is, if you're I'm playing in the golf thing, the golf tournament, the golf event Friday morning. I don't think there's a social or anything Thursday night, is there?
+
+speaker1 01:12:43
+There's not. No.
+
+speaker5 01:12:45
+Okay. So the social is Friday night.
+
+speaker5 01:12:51
+Gotcha. Oh, Mark and Mark and his crew are going to.
+
+speaker3 01:12:57
+Allison in a go.
+
+speaker1 01:12:59
+I'll let y'all know once you won't.
+
+speaker5 01:13:01
+Go out or nobody's credit cards will get damn like the last two years at Jekyll.
+
+speaker3 01:13:11
+I'm not sure. I've got the information, but I would think so.
+
+speaker3 01:13:16
+Travis is.
+
+speaker1 01:13:18
+All right, Ed, do you have anything before we hang up?
+
+speaker1 01:13:24
+No, I want to encourage everybody to, whenever they can, particularly on St.
+
+speaker1 01:13:31
+trailer tires, because it's the season, please carry an St.
+
+speaker1 01:13:36
+trailer tire with you and let them see.
+
+speaker1 01:13:42
+I'm asking for some show, tell, and sell on that. So take Take a tire with you. On the tire service products, let's talk it up.
+
+speaker1 01:13:57
+I think there's a nice reward for you there in any way that we can get a customer to place an order and then add to it. Let's do it.
+
+speaker5 01:14:13
+Are those little notepads at the warehouses?
+
+speaker1 01:14:17
+They are.
+
+speaker5 01:14:18
+That was a really good idea. I see them when I'm out in the field.
+
+speaker5 01:14:22
+I'll see one on somebody's desk. Did you know that was?
+
+speaker5 01:14:25
+Yeah. All right.
+
+speaker5 01:14:28
+Yeah, I'll stop. I'm in Statesboro.
+
+speaker1 01:14:32
+That was Tiffany's idea.
+
+speaker5 01:14:35
+Yeah, I was at a Columbus tire and it was Tim and he goes, yeah, this is my new one. And he put it on top of the old rubber ink one.
+
+speaker1 01:14:47
+Nice.
+
+speaker5 01:14:48
+Yeah. He goes, if he says, he said if he had to get something from Rubber Ink or somewhere else or something like that, he'll write the order down and take a picture of it and send it.
+
+speaker5 01:14:58
+I thought that was pretty funny.
+
+speaker1 01:15:00
+What an instigator.
+
+speaker5 01:15:01
+Yeah. But yeah, I'll.
+
+speaker6 01:15:06
+Hey, and to and to Tiffany or Jonathan, if you guys can e-mail the.
+
+speaker6 01:15:14
+the supply keywords, like our letterhead or something, gussy it up a little bit.
+
+speaker6 01:15:19
+I'll make sure I get that printed out when, especially when you're out prospecting and you're giving people the line sheets, the line sheets. I'll print one of those out.
+
+speaker1 01:15:29
+And so just have it all bundled up. Real quick, before, so we made a bunch of enhancements on TireLink.
+
+speaker1 01:15:44
+for that and so and don't forget about this promotion right here this buy four get one on the Dunlop blue response while it's right here in front of my face and I'm thinking about So if the dealers go to the search function on the website, they can go right here to supplies. And then everything is right here in the drop down.
+
+speaker1 01:16:15
+So we got balancing beads, blades, gloves, lube, mount. I guess that's mounting lube.
+
+speaker1 01:16:24
+Mounting compound maybe. O-rings, paint, repair.
+
+speaker6 01:16:29
+I see it now.
+
+speaker1 01:16:30
+Tooks. Everybody knows what took is, right?
+
+speaker1 01:16:34
+And then TPMS. I'm just kidding.
+
+speaker1 01:16:36
+I don't know some misspelled tool.
+
+speaker6 01:16:38
+So you misspelled tool.
+
+speaker1 01:16:47
+Give me some TPMS, valve and weight. So all the keywords are here under.
+
+speaker1 01:16:55
+The drop down. Yep.
+
+speaker1 01:17:01
+Shawn, may I? Sure, go ahead.
+
+speaker1 01:17:04
+May I ask a question? And I would like to have some answers.
+
+speaker1 01:17:08
+Who wants to hear the Dunlop story? I don't know.
+
+speaker1 01:17:15
+I've heard the Dunlop story, guys, so y'all are gonna have to speak up. Any takers?
+
+speaker5 01:17:21
+Hit me.
+
+speaker1 01:17:23
+Alright. Congratulations, you have the Dunlop brand.
+
+speaker1 01:17:28
+The Dunlop brand was damaged.
+
+speaker1 01:17:34
+It was given to Goodyear to market and they dismantled it and they damaged it.
+
+speaker1 01:17:40
+The rightful owner of Dunlop has taken it back. That's Sumitomo.
+
+speaker1 01:17:47
+Sumitomo in Japan markets the Dunlop brand ahead of the Sumitomo brand.
+
+speaker1 01:17:56
+In other words, there is no Sumitomo brand at OE in Japan. It's Dunlop.
+
+speaker1 01:18:05
+And the rightful owner of the Dunlop brand is now manufacturing it, marketing it and sold it to you. The Dunlop brand will come back as an OE brand.
+
+speaker1 01:18:18
+It's an awesome opportunity. Everybody recognizes the Dunlop brand.
+
+speaker1 01:18:24
+It's easy to sell because it's recognizable. It's not going to be the cheapest thing on the block.
+
+speaker1 01:18:34
+But a dealer who brings the Dunlop brand in and on will have an easier time selling the product because it's recognizable and therefore can make some money with it.
+
+speaker1 01:18:49
+make his profit objective however they do that by percentage or by sheer dollar amount.
+
+speaker1 01:18:55
+So that's basically the Dunlop story.
+
+speaker1 01:18:59
+It's going to be Japanese built and I understand where it was built before but everything has changed on the Dunlop brand and that needs to be explained. That's the Dunlop story.
+
+speaker1 01:19:11
+I don't think it's any more than 11 to 15 seconds to get that out there. So That's my best advice is tell somebody a story that it has changed. It's changed favorably.
+
+speaker1 01:19:26
+So with that said, I wish you the best. Thank you, Ed.
+
+speaker3 01:19:33
+I mean, we have one.
+
+speaker1 01:19:34
+Yep, this is going to be definitely our path of least resistance on our path for success on Dunlop is going to be with the dealer that that actually sells at the counter and isn't the order taker customer that is just selling whatever the consumer comes in and asks for.
+
+speaker1 01:19:54
+So we all know who those dealers are and the customers should actually push a push a brand that they want to sell and or that they can make money on. And this is this is one of them.
+
+speaker1 01:20:08
+So there's 35. All right.
+
+speaker1 01:20:11
+Kind of similar to.
+
+speaker5 01:20:15
+The Senzo story, when we get out there and tell that, they become familiar with it.
+
+speaker5 01:20:22
+The history, that's pretty how we've been marketing this Senzo is, you know, telling the history.
+
+speaker5 01:20:29
+And the first thing they think is this, you know, the cheapest Chinese brand seeing a new name, but once they find out it's former Alliance Galaxy Primex, BKT Engineering, they, you know, they changed the way they look at it. Anyhow.
+
+speaker1 01:20:50
+What if we did like a two new brands, two new stories, type flyer, and had a Senzo and Dunlop on just a one-pager with kind of what a Senzo is and what Dunlop is?
+
+speaker1 01:21:11
+You know, nothing more than what Ed just said, nothing more than what you just said, Austin, but just something to put in.
+
+speaker1 01:21:17
+Put in their hands with the, logo and logo on it.
+
+speaker2 01:21:23
+Sean, would it be worth putting something like that on the homepage as well?
+
+speaker1 01:21:27
+Yeah, we could put it on the homepage too. We'll take out the derogatory stuff I said about Goodyear.
+
+speaker1 01:21:33
+Yeah, we'll leave that stuff in there. That's what makes it fun.
+
+speaker3 01:21:39
+They're active and can be used immediately.
+
+speaker1 01:21:41
+The mudslinging. They're.
+
+speaker3 01:21:43
+Active and can be used immediately.
+
+speaker8 01:21:49
+All right.
+
+speaker1 01:21:52
+Well, guys, keep Chris and his family and your thoughts and prayers, please.
+
+speaker1 01:21:59
+And, I would encourage you to shoot him a text message or something to today at some point.
+
+speaker1 01:22:13
+and I think all of us interact with him probably in some days more than others.
+
+speaker1 01:22:21
+So feel free to drop him a note and I know that he would appreciate it.
+
+speaker5 01:22:31
+You think there'll be a GoFundMe for this?
+
+speaker1 01:22:34
+There is a GoFundMe. and it is about two thirds funded already.
+
+speaker1 01:22:40
+And I'm going to include it in the e-mail that I'm going to send out this morning. So they are they are raising funds for to cover hospital bills and funeral expenses.
+
+speaker1 01:22:50
+So yeah.
+
+speaker1 01:23:01
+All right. Thank you all, and hope everybody has a good day, and we will talk soon.
+
+speaker3 01:23:09
+Thank you.
+
+speaker1 01:23:10
+Thank you. Thank you.
+
+speaker3 01:23:14
+Where's that one?
+
+speaker8 01:23:16
+speaker3 01:23:18
+What's that? Yeah, 244.
+
+speaker3 01:23:20
+And then the rest of them should have their proper numbers on there. All right, let me do this meeting.
+
+speaker8 01:23:32
+You got another one? Replace this one.
+
+speaker8 01:23:35
+That's my extra one loss if you ain't here. You know it's bound to happen.
+
+speaker3 01:23:46
+Take that look.
+
+speaker1 01:23:59
+There's Tom. Did you get tired of moving, Tom?
+
+speaker1 01:24:03
+it happens fast I I'm just getting in the way would you tell me I got this call moving Tom it happens fast I I'm just getting in the way would you tell me I got this call I got to jump hold it yeah I'm just I'm I'm just in the`
+  },
+  {
     id: "msr_20260601",
     date: "2026-06-02",
     weekNum: 22,
+    archived: true,
+    archivedNote: "W22: Revenue $1.487M (-7.2%), Units 11,079 (-8.3%), GP $207K but GP% at 13.9% trending up. Industrial tires top performer. RAD LT Truck bottom — Venom/Predator/Nexon brands phased out. TBR containers building.",
     title: "W22 Review — June 2, 2026",
     headline: "W22 down 8.3% on units but GP% trending in the right direction after price increase. YTD still strong at +19.1% units, +11% sales.",
-    sections: [
-      {
-        label: "📊 W22 Performance",
-        color: "#DC2626",
-        bullets: [
-          "Units: 11,079 vs 12,076 PY — down 8.3% (997 units short)",
-          "Revenue: $1.487M, down 7.2% ($114K)",
-          "GP: $207K, down 21.8% ($58K) — BUT GP% at 13.9%, trending UP",
-          "GP% progression post-price increase: 13.27 → 13.3 → 13.53 → 13.9% — target is 15-16%"
-        ]
-      },
-      {
-        label: "🏆 Departments",
-        color: "#059669",
-        bullets: [
-          "Industrial tires: TOP performer for the week — first time ever",
-          "Radio/light truck: BOTTOM — down 1,259 units (Venom, Predator, Nexon, Transamerica brands phased out)",
-          "Truck tires (TBR): down 447 units — Byron down 254, Tifton and Statesboro also off",
-          "Passenger: high volume but NOT profitable growth — focus elsewhere"
-        ]
-      },
-      {
-        label: "📅 YTD & Month-to-Month",
-        color: "#0891B2",
-        bullets: [
-          "YTD through May: units +19.1%, sales +11%, +$3.9M, +50K units vs 2025",
-          "May month-over-month: units -998 (-2%), sales -$400K (-5%)",
-          "Still tracking well above 8% growth budget for 2026",
-          "June focus: don't have a down month — containers in the pipe should help"
-        ]
-      },
-      {
-        label: "📦 Inventory",
-        color: "#7C3AED",
-        bullets: [
-          "Current inventory: $21.1M (flat vs last week)",
-          "3-4 direct containers expected to land this week — approx 1,000 TBR units",
-          "TBR Town warehouse (Store 4): landlord wants to lease it — exit ASAP",
-          "ACTION: Move TBR Town inventory to Statesboro and other branches immediately — creating out-of-stock illusion",
-          "Toyo backorder issues — Scott working on ETAs, limited info from Toyo",
-          "Blackhawk BFR-57: potential fill-in option being sourced, answer by tomorrow"
-        ]
-      },
-      {
-        label: "💰 AR Collections",
-        color: "#D97706",
-        bullets: [
-          "New month — hammer AR hard, prime collection time",
-          "Several accounts rolled past due from May",
-          "3-4 accounts turned over to attorneys — complaints filed in court today",
-          "Chris posting weekend payments this morning before running statements — updated AR coming"
-        ]
-      },
-      {
-        label: "🎯 Promotions",
-        color: "#0891B2",
-        bullets: [
-          "Dunlop/Owala promo: 1 black laser-engraved Owala thermos per 4 Dunlops — first 2 weeks of June. Any dealer eligible. Flyer going on Tirelink today.",
-          "Tag Team program: coming out shortly",
-          "Americus May recon ended — Economy Tire big winner, Screens Tire & Muffler also in the money",
-          "Falken Q2: only 1 DNR in the money — push hard through June",
-          "Toyo Q2: 9 dealers in the money — one more month to close out"
-        ]
-      },
-      {
-        label: "🔑 Key Directives",
-        color: "#1E5FCC",
-        bullets: [
-          "STOP THE MARGIN BLEED — volume does not fix margin. Chase GP, not units.",
-          "TBR and light truck are the two big segment focuses",
-          "Passenger segment growing but not profitable — don't chase that volume",
-          "If cutting price aggressively, it must be for a new market or a down market — not existing well-serviced routes",
-          "Our service is worth more than cutting 2 points off a tire to close a transaction",
-          "Price levels review this month — adjusting across 3 accounts (Tifton)"
-        ]
-      }
-    ],
-    tiftonNotes: "JMZ and Del Toro called out as radio/LT accounts to watch. Eric's Tifton and Eric's Sylvester discussed for retention. Price level adjustments planned for 3 accounts — moving away from aggressive pricing on well-covered routes. Still no access to Dynamics CRM.",
-    createdBy: "AI Summary"
+    briefSummary: "W22 revenue $1.487M, units 11,079. GP% 13.9% trending up. Industrial tires top performer. RAD LT Truck headwind continues.",
+    sections: [],
+    transcript: ""
   }
 ];
 
