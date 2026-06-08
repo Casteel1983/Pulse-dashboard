@@ -3531,7 +3531,7 @@ Keep each bullet to 1-2 sentences, specific and actionable.`;
 
 // ── Customer Comparison Tabs ──────────────────────────────────────────────────
 function CustomerCompView({ weekComp, onCustomerClick, customers, user }) {
-  const [period, setPeriod] = useState("qtd");
+  const [period, setPeriod] = useState("wtd");
   const [search, setSearch] = useState("");
   const [repFilter, setRepFilter] = useState("all");
   const [sortCol, setSortCol] = useState("sales2026");
