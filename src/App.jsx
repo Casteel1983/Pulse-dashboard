@@ -5691,13 +5691,16 @@ function ActionPlanView({ actionPlan, onCustomerClick, customers, inactiveCustom
     if (!action) return null;
     const a = action.toUpperCase();
     const color = a.includes("LOST") || a.includes("DECLINING") ? RED
-      : a.includes("GROWING") || a.includes("EXPAND") ? GREEN
-      : a.includes("MAINTAIN") || a.includes("STABLE") ? TEAL
+      : a.includes("GROW") || a.includes("EXPAND") ? GREEN
+      : a.includes("MAINTAIN") || a.includes("STABLE") || a === "OK" ? TEAL
+      : a.includes("NEW") ? TEAL
       : MUTED;
     const label = a.includes("LOST") ? "LOST"
       : a.includes("DECLINING") ? "DECLINING"
-      : a.includes("GROWING") ? "GROWING"
+      : a.includes("GROW") ? "GROWING"
+      : a.includes("NEW") ? "NEW"
       : a.includes("MAINTAIN") ? "MAINTAIN"
+      : a === "OK" ? "STABLE"
       : "WATCH";
     return <span style={{ fontSize: "0.68rem", background: color, color: BG2, padding: "1px 5px", borderRadius: 2, fontWeight: 700, marginRight: 4 }}>{label}</span>;
   }
