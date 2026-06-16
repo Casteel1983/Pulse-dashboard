@@ -5247,6 +5247,7 @@ function DeptView({ depts, weekComp }) {
     d.sales > 0
     && !String(d.dept||"").startsWith("•")
     && !String(d.dept||"").toLowerCase().includes("departments")
+    && String(d.dept||"").toLowerCase() !== "total"
   );
   const sorted = [...clean].sort((a,b) => b.sales - a.sales);
   const maxSales = sorted[0]?.sales || 1;
