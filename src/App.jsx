@@ -10042,7 +10042,7 @@ function CustomerDetailTab({ ap, customers, ar, weekComp, onClose, inactiveRecor
   async function generateCallSummary() {
     setAiLoading(true);
     setSubTab("calls");
-    const arInfo = arRecord ? `AR Balance: $${arRecord.balance.toFixed(0)}, Current: $${arRecord.curDue.toFixed(0)}, 90+ days: $${arRecord.dueOver90.toFixed(0)}, Last paid: ${arRecord.lastPaid || "unknown"}` : "No AR data";
+    const arInfo = arRecord ? `AR Balance: $${arRecord.balance.toFixed(0)}, Current: $${arRecord.curDue.toFixed(0)}, 90+ days: $${arRecord.due90p.toFixed(0)}, Last paid: ${arRecord.lastPaid || "unknown"}` : "No AR data";
     const prompt = `You are a tire & ag supply sales assistant helping a rep prepare for a customer call.
 
 Customer: ${ap.customer}
@@ -10089,13 +10089,18 @@ Generate a NEXT VISIT PLAN for this account. Return JSON only: { "callPlan": "2-
 
   // Auto-generate on first "calls" tab open
   const planGenerated = useRef(false);
+  // Reset per customer so each new customer detail auto-generates
+  useEffect(() => {
+    planGenerated.current = false;
+    setCallSummary(null);
+  }, [ap.custNum]);
   useEffect(() => {
     // Auto-generate on first overview open
     if (subTab === "overview" && !callSummary && !aiLoading && !planGenerated.current) {
       planGenerated.current = true;
       generateCallSummary();
     }
-  }, [subTab]);
+  }, [subTab, ap.custNum]);
 
   const adProgram = AD_PROGRAMS[String(ap.custNum)] || null;
   const ascensoProgram  = ASCENSO_PROGRAMS[String(ap.custNum)]  || null;
