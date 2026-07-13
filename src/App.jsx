@@ -8644,7 +8644,7 @@ function BranchesTab({ branchData, weekComp }) {
                 {pct(r.chgPct)}
               </span>
             </div>
-            <div style={{ fontSize:"0.65rem", color:MUTED, marginTop:3 }}>vs {period==="ytd"?"YTD 2025":period==="q1"?"Q1 2025":"Q2 2025"}: {metric==="gpPct"?pct(r.gPrev/r.prev||0):metric==="gp"?fmt(r.gPrev):fmt(r.prev)}</div>
+            <div style={{ fontSize:"0.65rem", color:MUTED, marginTop:3 }}>vs {period==="wtd"?"W28 2025":period==="q1"?"Q1 2025":period==="q2"?"Q2 2025":period==="q3"?"Q3 2025":"YTD 2025"}: {metric==="gpPct"?pct(r.gPrev/r.prev||0):metric==="gp"?fmt(r.gPrev):fmt(r.prev)}</div>
             <div style={{ marginTop:"0.5rem", height:3, background:BORDER, borderRadius:2 }}>
               <div style={{ height:3, background:BRANCH_COLORS[r.b], borderRadius:2, width:`${(r.cur/Math.max(...branchRows.map(x=>x.cur)))*100}%` }} />
             </div>
@@ -8689,7 +8689,7 @@ function BranchesTab({ branchData, weekComp }) {
 
       {/* Tifton dept breakdown */}
       <div style={S.card}>
-        <div style={{ fontSize:"0.7rem", color:MUTED, textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:"0.75rem" }}>Tifton — Department Breakdown (Q1 Actuals)</div>
+        <div style={{ fontSize:"0.7rem", color:MUTED, textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:"0.75rem" }}>Tifton — Department Breakdown ({periodLabel})</div>
         <div style={{ overflowX:"auto" }}>
           <table style={S.table}>
             <thead>
@@ -8706,23 +8706,26 @@ function BranchesTab({ branchData, weekComp }) {
             </thead>
             <tbody>
               {tiftonDepts.map((d,i)=>{
-                const chg = d.sales2026-d.sales2025;
-                const chgPct = d.sales2025 ? chg/d.sales2025 : 0;
-                const gpPct = d.sales2026 ? d.gp2026/d.sales2026 : 0;
+                const s26  = d.sales2026 ?? d.sales ?? 0;
+                const s25  = d.sales2025 ?? 0;
+                const gp26 = d.gp2026    ?? d.gp   ?? 0;
+                const chg     = s26 - s25;
+                const chgPct  = s25 ? chg/s25 : 0;
+                const gpPct   = s26 ? gp26/s26 : 0;
                 return (
                   <tr key={i}>
                     <td style={{ ...S.td, fontWeight:600 }}>{d.dept}</td>
-                    <td style={{ ...S.td, textAlign:"right", color:MUTED }}>{fmt(d.sales2025)}</td>
-                    <td style={{ ...S.td, textAlign:"right", fontWeight:600 }}>{fmt(d.sales2026)}</td>
+                    <td style={{ ...S.td, textAlign:"right", color:MUTED }}>{fmt(s25)}</td>
+                    <td style={{ ...S.td, textAlign:"right", fontWeight:600 }}>{fmt(s26)}</td>
                     <td style={{ ...S.td, textAlign:"right", color:clr(chg), fontWeight:600 }}>{fmt(chg)}</td>
                     <td style={{ ...S.td, textAlign:"right" }}>
                       <span style={{ fontSize:"0.68rem", background:chgPct>=0?"#D1FAE5":"#FEE2E2", color:clr(chgPct), borderRadius:8, padding:"1px 6px", fontWeight:700 }}>{pct(chgPct)}</span>
                     </td>
-                    <td style={{ ...S.td, textAlign:"right" }}>{fmt(d.gp2026)}</td>
+                    <td style={{ ...S.td, textAlign:"right" }}>{fmt(gp26)}</td>
                     <td style={{ ...S.td, textAlign:"right", color:gpPct<0.08?RED:GREEN, fontWeight:600 }}>{pct(gpPct)}</td>
                     <td style={S.td}>
                       <div style={{ height:6, background:BORDER, borderRadius:3 }}>
-                        <div style={{ height:6, background:chg>=0?GREEN:RED, borderRadius:3, width:`${Math.min(100,(d.sales2026/maxDeptSale)*100)}%` }} />
+                        <div style={{ height:6, background:chg>=0?GREEN:RED, borderRadius:3, width:`${Math.min(100,(s26/maxDeptSale)*100)}%` }} />
                       </div>
                     </td>
                   </tr>
