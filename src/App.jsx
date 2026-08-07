@@ -243,7 +243,6 @@ const SEED_CALL_LOG = {"200166":[{"date":"5/17/2026","rep":"Nick Davis","type":"
 const USERS = [
   { id:"tiffany", name:"Tiffany", color:"#7C3AED", hash:"ffc350e0cf3142060afedcbcc205ca749dcf6d78a82e29c36eecb8229352fe80", rep:true  },
   { id:"larry",   name:"Larry",   color:"#0891B2", hash:"03af02e864ff7b72aa5e1546d505089e06188ae3527c90af387c44aa748adec3", rep:true  },
-  { id:"austin",  name:"Austin",  color:"#D97706", hash:"7c30f0708d4cd34a212c573bfafb8a41f56eb4ad9247ea50a638f9dff344183c", rep:true  },
   { id:"admin",   name:"Admin",   color:"#1E5FCC", hash:"428014c233df16655c4ce093a77fa4151788f71ab451eec009af91a9c1ba4001", rep:false },
 ];
 async function hashPw(pw) {
